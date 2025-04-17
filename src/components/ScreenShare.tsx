@@ -16,8 +16,9 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
 
   const startScreenShare = async () => {
     try {
+      // Remove the invalid 'cursor' property from the constraints
       const stream = await navigator.mediaDevices.getDisplayMedia({ 
-        video: { cursor: "always" },
+        video: true,
         audio: false 
       });
       
