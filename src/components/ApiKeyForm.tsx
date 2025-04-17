@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +11,19 @@ interface ApiKeyFormProps {
 }
 
 const ApiKeyForm = ({ onSave }: ApiKeyFormProps) => {
-  const [apiKey, setApiKeyState] = useState(getApiKey());
+  const [apiKey, setApiKeyState] = useState("");
   const [showKey, setShowKey] = useState(false);
+
+  // Load API key from localStorage on component mount
+  useEffect(() => {
+    const savedKey = localStorage.getItem("openrouter_api_key") || "";
+    setApiKeyState(savedKey);
+    
+    // Also update the service if a key exists
+    if (savedKey) {
+      setApiKey(savedKey);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +32,7 @@ const ApiKeyForm = ({ onSave }: ApiKeyFormProps) => {
       return;
     }
     
+    // Save in both localStorage and service state
     setApiKey(apiKey);
     localStorage.setItem("openrouter_api_key", apiKey);
     toast.success("API key saved successfully");

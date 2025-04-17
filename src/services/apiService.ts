@@ -8,8 +8,8 @@ interface ChatMessage {
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// This should be replaced by an environment variable or user input
-let apiKey = ""; 
+// Initialize API key from localStorage if available
+let apiKey = localStorage.getItem("openrouter_api_key") || ""; 
 
 export const setApiKey = (key: string) => {
   apiKey = key;
