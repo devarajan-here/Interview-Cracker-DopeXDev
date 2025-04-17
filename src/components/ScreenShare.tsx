@@ -12,6 +12,7 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const startScreenShare = async () => {
     try {
@@ -24,7 +25,27 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
       setIsSharing(true);
       toast.success("Screen sharing and audio capture started");
       
-      // Initialize audio context
+      // Initialize speech recognition
+      if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        
+        recognitionRef.current.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(result => result[0].transcript)
+            .join(' ');
+            
+          if (transcript.trim()) {
+            onScreenCapture(transcript);
+          }
+        };
+        
+        recognitionRef.current.start();
+      }
+      
+      // Initialize audio context for level detection
       audioContextRef.current = new AudioContext();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       const processor = audioContextRef.current.createScriptProcessor(1024, 1, 1);
@@ -32,20 +53,16 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
       source.connect(processor);
       processor.connect(audioContextRef.current.destination);
       
-      // Process audio data
+      // Process audio data for level detection
       processor.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
-        // Here you can process the audio data
-        // For now, we'll just log the average volume
         const average = inputData.reduce((sum, value) => sum + Math.abs(value), 0) / inputData.length;
-        console.log('Audio level:', average);
         
-        if (average > 0.01) { // Threshold for detecting sound
-          onScreenCapture(`Audio detected at level: ${average.toFixed(3)}`);
+        if (average > 0.01) {
+          console.log('Audio detected at level:', average.toFixed(3));
         }
       };
       
-      // Set up listener for when screen sharing ends
       stream.getTracks().forEach(track => {
         track.onended = () => {
           stopScreenShare();
@@ -58,6 +75,11 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
   };
 
   const stopScreenShare = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
