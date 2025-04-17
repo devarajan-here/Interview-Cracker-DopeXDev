@@ -115,4 +115,3 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
 };
 
 export default ScreenShare;
-
