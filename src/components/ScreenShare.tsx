@@ -12,8 +12,8 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  // Fix the type reference by using the global interface
-  const recognitionRef = useRef<globalThis.SpeechRecognition | null>(null);
+  // Fix the type by directly referencing SpeechRecognition without globalThis
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const startScreenShare = async () => {
     try {
