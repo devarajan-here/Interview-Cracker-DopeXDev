@@ -11,92 +11,50 @@ interface ScreenShareProps {
 const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const startScreenShare = async () => {
     try {
-      // Remove the invalid 'cursor' property from the constraints
       const stream = await navigator.mediaDevices.getDisplayMedia({ 
         video: true,
-        audio: false 
+        audio: true 
       });
       
       mediaStreamRef.current = stream;
       setIsSharing(true);
-      toast.success("Screen sharing started");
+      toast.success("Screen sharing and audio capture started");
       
-      // Create a hidden video element to capture frames
-      if (!videoRef.current) {
-        const video = document.createElement('video');
-        video.style.display = 'none';
-        document.body.appendChild(video);
-        videoRef.current = video;
-      }
-
-      // Create canvas for processing if it doesn't exist
-      if (!canvasRef.current) {
-        const canvas = document.createElement('canvas');
-        canvas.style.display = 'none';
-        document.body.appendChild(canvas);
-        canvasRef.current = canvas;
-      }
+      // Initialize audio context
+      audioContextRef.current = new AudioContext();
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      const processor = audioContextRef.current.createScriptProcessor(1024, 1, 1);
       
-      // Set up video
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+      source.connect(processor);
+      processor.connect(audioContextRef.current.destination);
+      
+      // Process audio data
+      processor.onaudioprocess = (e) => {
+        const inputData = e.inputBuffer.getChannelData(0);
+        // Here you can process the audio data
+        // For now, we'll just log the average volume
+        const average = inputData.reduce((sum, value) => sum + Math.abs(value), 0) / inputData.length;
+        console.log('Audio level:', average);
         
-        // Capture frame after a short delay to ensure video is playing
-        setTimeout(captureFrame, 1000);
-      }
+        if (average > 0.01) { // Threshold for detecting sound
+          onScreenCapture(`Audio detected at level: ${average.toFixed(3)}`);
+        }
+      };
       
       // Set up listener for when screen sharing ends
-      stream.getVideoTracks()[0].onended = () => {
-        stopScreenShare();
-      };
+      stream.getTracks().forEach(track => {
+        track.onended = () => {
+          stopScreenShare();
+        };
+      });
     } catch (err) {
       console.error("Error sharing screen:", err);
       toast.error("Failed to start screen sharing");
     }
-  };
-
-  const captureFrame = () => {
-    if (!isSharing || !videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-    
-    if (context && video.readyState === video.HAVE_ENOUGH_DATA) {
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Draw video frame to canvas
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // In a real implementation, you would use OCR here
-      // For now, we'll simulate OCR with a placeholder
-      simulateOcr(canvas);
-    }
-  };
-  
-  const simulateOcr = (canvas: HTMLCanvasElement) => {
-    // In a real implementation, this would call an OCR service
-    // For now, we're simulating OCR results
-    
-    // Get timestamp to make each capture unique
-    const timestamp = new Date().toLocaleTimeString();
-    
-    // Simulate captured text (in production, this would come from actual OCR)
-    const capturedText = `What are the most important qualities for a software engineer? (Captured at ${timestamp})`;
-    
-    // Send the captured text to the parent component
-    onScreenCapture(capturedText);
-    
-    // Log for debugging
-    console.log("Screen captured and processed:", capturedText);
   };
 
   const stopScreenShare = () => {
@@ -105,13 +63,13 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
       mediaStreamRef.current = null;
     }
     
-    // Clean up video and canvas elements
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
     }
     
     setIsSharing(false);
-    toast.info("Screen sharing stopped");
+    toast.info("Screen sharing and audio capture stopped");
   };
 
   return (
@@ -127,7 +85,7 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
       ) : (
         <>
           <Monitor className="mr-2" />
-          Share Screen
+          Share Screen & Audio
         </>
       )}
     </Button>
@@ -135,3 +93,4 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
 };
 
 export default ScreenShare;
+
