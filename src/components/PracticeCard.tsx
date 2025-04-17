@@ -3,6 +3,7 @@ import React from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Code, UserRound, CheckCircle, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface Practice {
   id: number;
@@ -57,8 +58,10 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ practice }) => {
       </CardContent>
       
       <CardFooter className="px-6 py-4 border-t border-gray-100">
-        <Button variant="default" className="w-full">
-          {completed ? "Review Session" : "Continue Practice"}
+        <Button variant="default" className="w-full" asChild>
+          <Link to="/live-interview">
+            {completed ? "Review Session" : "Continue Practice"}
+          </Link>
         </Button>
       </CardFooter>
     </Card>

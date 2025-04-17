@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { PlusCircle, Code, UserRound, Clock } from "lucide-react";
+import { PlusCircle, Code, UserRound, Clock, Mic } from "lucide-react";
+import { Link } from "react-router-dom";
 import PracticeCard from "@/components/PracticeCard";
 
 const Index = () => {
@@ -10,7 +11,7 @@ const Index = () => {
     {
       id: 1,
       title: "React Hooks Interview",
-      type: "coding",
+      type: "coding" as const,
       date: "2 days ago",
       questions: 5,
       completed: true
@@ -18,7 +19,7 @@ const Index = () => {
     {
       id: 2,
       title: "Leadership Experience",
-      type: "behavioral",
+      type: "behavioral" as const,
       date: "1 week ago",
       questions: 8,
       completed: false
@@ -42,38 +43,51 @@ const Index = () => {
           <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
             Practice coding and behavioral questions with personalized feedback to boost your confidence.
           </p>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100">
-                <PlusCircle className="mr-2" />
-                Start New Practice
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>Choose Practice Type</SheetTitle>
-                <SheetDescription>
-                  Select the type of interview practice you want to start.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="grid gap-6 py-6">
-                <Button variant="outline" className="h-24 justify-start gap-4">
-                  <Code size={24} />
-                  <div className="text-left">
-                    <h3 className="font-medium">Coding Interview</h3>
-                    <p className="text-sm text-muted-foreground">Practice algorithms and technical questions</p>
-                  </div>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Button asChild size="lg" className="bg-white text-purple-600 hover:bg-gray-100">
+              <Link to="/live-interview">
+                <Mic className="mr-2" />
+                Try Live Interview
+              </Link>
+            </Button>
+            
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button size="lg" variant="secondary">
+                  <PlusCircle className="mr-2" />
+                  Start New Practice
                 </Button>
-                <Button variant="outline" className="h-24 justify-start gap-4">
-                  <UserRound size={24} />
-                  <div className="text-left">
-                    <h3 className="font-medium">Behavioral Interview</h3>
-                    <p className="text-sm text-muted-foreground">Work on your soft skills and situational questions</p>
-                  </div>
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Choose Practice Type</SheetTitle>
+                  <SheetDescription>
+                    Select the type of interview practice you want to start.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="grid gap-6 py-6">
+                  <Button variant="outline" className="h-24 justify-start gap-4" asChild>
+                    <Link to="/live-interview">
+                      <Code size={24} />
+                      <div className="text-left">
+                        <h3 className="font-medium">Coding Interview</h3>
+                        <p className="text-sm text-muted-foreground">Practice algorithms and technical questions</p>
+                      </div>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-24 justify-start gap-4" asChild>
+                    <Link to="/live-interview">
+                      <UserRound size={24} />
+                      <div className="text-left">
+                        <h3 className="font-medium">Behavioral Interview</h3>
+                        <p className="text-sm text-muted-foreground">Work on your soft skills and situational questions</p>
+                      </div>
+                    </Link>
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </section>
 
