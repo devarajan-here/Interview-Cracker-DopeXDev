@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,8 @@ const LiveInterview = () => {
     }
     
     // Check if browser supports Web Speech API
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition: SpeechRecognitionStatic = 
+      window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
       toast.error("Voice recognition is not supported in your browser.");
