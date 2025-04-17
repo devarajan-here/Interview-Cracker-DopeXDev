@@ -68,6 +68,7 @@ interface SpeechRecognitionStatic {
   prototype: SpeechRecognition;
 }
 
+// Export the interfaces globally
 declare global {
   interface Window {
     SpeechRecognition: SpeechRecognitionStatic;

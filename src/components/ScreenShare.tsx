@@ -8,11 +8,19 @@ interface ScreenShareProps {
   onScreenCapture: (text: string) => void;
 }
 
+// Add this line to ensure TypeScript recognizes the SpeechRecognition type
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
 const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  // Fix the type by directly referencing SpeechRecognition without globalThis
+  // Use the correct type reference
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const startScreenShare = async () => {
@@ -28,8 +36,8 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
       
       // Initialize speech recognition
       if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognition();
+        const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognitionConstructor();
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = true;
         
