@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,11 +20,20 @@ import {
 const LiveInterview = () => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [aiAssistance, setAIAssistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(!getApiKey());
 
   const handleScreenCapture = (capturedText: string) => {
     setQuestion(capturedText);
+  };
+
+  const handleAIAssistance = (suggestion: string) => {
+    setAIAssistance(suggestion);
+    toast.info("AI Assistance", {
+      description: suggestion,
+      duration: 5000,
+    });
   };
 
   const handleSubmit = async () => {
@@ -88,11 +96,14 @@ const LiveInterview = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Share your screen or type your interview question</h2>
+          <h2 className="text-xl font-semibold mb-4">LockedIn AI Interview Assistant</h2>
           
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row gap-4">
-              <ScreenShare onScreenCapture={handleScreenCapture} />
+              <ScreenShare 
+                onScreenCapture={handleScreenCapture} 
+                onAIAssist={handleAIAssistance}
+              />
               
               <div className="relative flex-grow">
                 <Textarea 
@@ -103,6 +114,13 @@ const LiveInterview = () => {
                 />
               </div>
             </div>
+            
+            {aiAssistance && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">AI Assistance</h3>
+                <p className="text-blue-800">{aiAssistance}</p>
+              </div>
+            )}
             
             <div className="flex gap-4">
               <Input

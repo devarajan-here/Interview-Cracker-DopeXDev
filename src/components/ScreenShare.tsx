@@ -1,19 +1,22 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Monitor, MonitorOff } from "lucide-react";
+import { Monitor, MonitorOff, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
+import { generateAnswer } from '@/services/apiService';
 
 interface ScreenShareProps {
   onScreenCapture: (text: string) => void;
+  onAIAssist?: (suggestion: string) => void;
 }
 
-const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
+const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  // Use the correct type reference without directly referencing SpeechRecognition
   const recognitionRef = useRef<any>(null);
+  const transcriptBufferRef = useRef<string[]>([]);
 
   const startScreenShare = async () => {
     try {
@@ -24,45 +27,8 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
       
       mediaStreamRef.current = stream;
       setIsSharing(true);
-      toast.success("Screen sharing and audio capture started");
-      
-      // Initialize speech recognition
-      if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-        const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognitionConstructor();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        
-        recognitionRef.current.onresult = (event) => {
-          const transcript = Array.from(event.results)
-            .map(result => result[0].transcript)
-            .join(' ');
-            
-          if (transcript.trim()) {
-            onScreenCapture(transcript);
-          }
-        };
-        
-        recognitionRef.current.start();
-      }
-      
-      // Initialize audio context for level detection
-      audioContextRef.current = new AudioContext();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      const processor = audioContextRef.current.createScriptProcessor(1024, 1, 1);
-      
-      source.connect(processor);
-      processor.connect(audioContextRef.current.destination);
-      
-      // Process audio data for level detection
-      processor.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        const average = inputData.reduce((sum, value) => sum + Math.abs(value), 0) / inputData.length;
-        
-        if (average > 0.01) {
-          console.log('Audio detected at level:', average.toFixed(3));
-        }
-      };
+      startSpeechRecognition();
+      toast.success("Screen sharing and AI assistant started");
       
       stream.getTracks().forEach(track => {
         track.onended = () => {
@@ -72,6 +38,51 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
     } catch (err) {
       console.error("Error sharing screen:", err);
       toast.error("Failed to start screen sharing");
+    }
+  };
+
+  const startSpeechRecognition = () => {
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognitionConstructor();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
+      
+      recognitionRef.current.onresult = async (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join(' ');
+        
+        if (transcript.trim()) {
+          onScreenCapture(transcript);
+          transcriptBufferRef.current.push(transcript);
+          
+          // AI assistance after a certain buffer size or timeout
+          if (transcriptBufferRef.current.length >= 3) {
+            await provideAIAssistance();
+          }
+        }
+      };
+      
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  const provideAIAssistance = async () => {
+    try {
+      const conversationContext = transcriptBufferRef.current.slice(-3).join(' ');
+      const aiResponse = await generateAnswer(`Provide a professional suggestion or follow-up based on this conversation context: ${conversationContext}`);
+      
+      if (onAIAssist) {
+        onAIAssist(aiResponse);
+      }
+      
+      // Clear buffer after generating assistance
+      transcriptBufferRef.current = [];
+    } catch (error) {
+      console.error('AI Assistance Error:', error);
     }
   };
 
@@ -86,33 +97,58 @@ const ScreenShare = ({ onScreenCapture }: ScreenShareProps) => {
       mediaStreamRef.current = null;
     }
     
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    
     setIsSharing(false);
-    toast.info("Screen sharing and audio capture stopped");
+    setIsListening(false);
+    transcriptBufferRef.current = [];
+    toast.info("Screen sharing and AI assistant stopped");
   };
 
   return (
-    <Button 
-      variant={isSharing ? "destructive" : "default"}
-      onClick={isSharing ? stopScreenShare : startScreenShare}
-    >
-      {isSharing ? (
-        <>
-          <MonitorOff className="mr-2" />
-          Stop Sharing
-        </>
-      ) : (
-        <>
-          <Monitor className="mr-2" />
-          Share Screen & Audio
-        </>
+    <div className="flex gap-2">
+      <Button 
+        variant={isSharing ? "destructive" : "default"}
+        onClick={isSharing ? stopScreenShare : startScreenShare}
+      >
+        {isSharing ? (
+          <>
+            <MonitorOff className="mr-2" />
+            Stop Sharing
+          </>
+        ) : (
+          <>
+            <Monitor className="mr-2" />
+            Share Screen & Audio
+          </>
+        )}
+      </Button>
+      {isSharing && (
+        <Button 
+          variant={isListening ? "default" : "outline"}
+          onClick={() => {
+            if (isListening) {
+              recognitionRef.current?.stop();
+              setIsListening(false);
+            } else {
+              startSpeechRecognition();
+            }
+          }}
+        >
+          {isListening ? (
+            <>
+              <MicOff className="mr-2" />
+              Stop Listening
+            </>
+          ) : (
+            <>
+              <Mic className="mr-2" />
+              Start Listening
+            </>
+          )}
+        </Button>
       )}
-    </Button>
+    </div>
   );
 };
 
 export default ScreenShare;
+
