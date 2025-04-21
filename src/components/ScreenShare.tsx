@@ -1,7 +1,7 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Monitor, MonitorOff, Mic, MicOff } from "lucide-react";
+import { Monitor, MonitorOff, Mic, MicOff, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { generateAnswer } from '@/services/apiService';
 
@@ -16,11 +16,39 @@ const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSp
 const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [microphoneState, setMicrophoneState] = useState<'ready' | 'denied' | 'unavailable' | 'inactive'>('inactive');
   const mediaStreamRef = useRef<MediaStream | null>(null);
   // Fix the typing here by using NonNullable<> to avoid TS2552 error
   const recognitionRef = useRef<InstanceType<NonNullable<typeof SpeechRecognitionConstructor>> | null>(null);
   const transcriptBufferRef = useRef<string[]>([]);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const restartTimeoutRef = useRef<number | null>(null);
+
+  // Check microphone permission on component mount
+  useEffect(() => {
+    checkMicrophonePermission();
+    return () => {
+      // Clean up on unmount
+      if (restartTimeoutRef.current) {
+        window.clearTimeout(restartTimeoutRef.current);
+      }
+      stopScreenShare();
+    };
+  }, []);
+
+  const checkMicrophonePermission = async () => {
+    try {
+      // Just request access to check permission status
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Stop tracks right away
+      setMicrophoneState('ready');
+      setPermissionDenied(false);
+    } catch (err) {
+      console.error("Microphone permission check failed:", err);
+      setMicrophoneState('denied');
+      setPermissionDenied(true);
+    }
+  };
 
   const startScreenShare = async () => {
     try {
@@ -34,8 +62,20 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
       
       mediaStreamRef.current = stream;
       setIsSharing(true);
-      startSpeechRecognition();
-      toast.success("Screen sharing and AI assistant started");
+      
+      // Check microphone access separately to ensure it's available
+      try {
+        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioStream.getTracks().forEach(track => track.stop()); // Stop immediately after checking
+        setMicrophoneState('ready');
+        startSpeechRecognition(); // Only start if microphone is available
+      } catch (err) {
+        console.error("Microphone access error:", err);
+        setMicrophoneState('denied');
+        toast.error("Microphone access is required for transcription. Please allow microphone access.");
+      }
+      
+      toast.success("Screen sharing started");
       
       stream.getTracks().forEach(track => {
         track.onended = () => {
@@ -87,27 +127,29 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
         
         if (event.error === 'not-allowed' || event.error === 'permission-denied') {
           setPermissionDenied(true);
+          setMicrophoneState('denied');
           toast.error('Microphone access denied. Please allow microphone access in your browser settings.');
         } else if (event.error === 'audio-capture') {
+          setMicrophoneState('unavailable');
           toast.error('No microphone detected or microphone is busy.');
         } else if (event.error === 'network') {
           toast.error('Network error occurred with speech recognition.');
+        } else if (event.error === 'no-speech') {
+          // This is a common error, we'll just show a gentler notification
+          toast.info('No speech detected. Please speak louder or check your microphone.');
+          
+          // Auto-restart on no-speech without alarming the user
+          if (isListening) {
+            restartSpeechRecognition();
+          }
         } else {
           toast.error(`Speech recognition error: ${event.error || 'Unknown error'}`);
         }
         
         // Auto-restart on non-permission errors
         if (event.error !== 'not-allowed' && event.error !== 'permission-denied' && isListening) {
-          setTimeout(() => {
-            if (isListening && recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch (e) {
-                console.error('Failed to restart speech recognition:', e);
-              }
-            }
-          }, 1000);
-        } else {
+          restartSpeechRecognition();
+        } else if (event.error === 'not-allowed' || event.error === 'permission-denied') {
           setIsListening(false);
         }
       };
@@ -115,12 +157,7 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
       recognitionRef.current.onend = () => {
         // Only restart if it's supposed to be listening and wasn't stopped due to permission issues
         if (isListening && !permissionDenied) {
-          try {
-            recognitionRef.current?.start();
-          } catch (e) {
-            console.error('Failed to restart speech recognition on end:', e);
-            setIsListening(false);
-          }
+          restartSpeechRecognition();
         } else {
           setIsListening(false);
         }
@@ -134,6 +171,25 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
       toast.error("Failed to start speech recognition. Please try again.");
       setIsListening(false);
     }
+  };
+
+  // Helper to restart speech recognition with a small delay to avoid rapid restart loops
+  const restartSpeechRecognition = () => {
+    if (restartTimeoutRef.current) {
+      window.clearTimeout(restartTimeoutRef.current);
+    }
+    
+    restartTimeoutRef.current = window.setTimeout(() => {
+      if (isListening && recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+          console.log("Speech recognition restarted");
+        } catch (e) {
+          console.error('Failed to restart speech recognition:', e);
+          setIsListening(false);
+        }
+      }
+    }, 1000);
   };
 
   const provideAIAssistance = async () => {
@@ -165,6 +221,7 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
     
     setIsSharing(false);
     setIsListening(false);
+    setMicrophoneState('inactive');
     setPermissionDenied(false);
     transcriptBufferRef.current = [];
     toast.info("Screen sharing and AI assistant stopped");
@@ -178,49 +235,64 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
       setIsListening(false);
       toast.info("Speech recognition paused");
     } else {
-      startSpeechRecognition();
+      // Check microphone permission before restarting
+      checkMicrophonePermission().then(() => {
+        if (!permissionDenied) {
+          startSpeechRecognition();
+        }
+      });
     }
   };
 
   return (
-    <div className="flex gap-2">
-      <Button 
-        variant={isSharing ? "destructive" : "default"}
-        onClick={isSharing ? stopScreenShare : startScreenShare}
-      >
-        {isSharing ? (
-          <>
-            <MonitorOff className="mr-2" />
-            Stop Sharing
-          </>
-        ) : (
-          <>
-            <Monitor className="mr-2" />
-            Share Screen & Audio
-          </>
-        )}
-      </Button>
-      {isSharing && (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2">
         <Button 
-          variant={isListening ? "default" : "outline"}
-          onClick={toggleSpeechRecognition}
+          variant={isSharing ? "destructive" : "default"}
+          onClick={isSharing ? stopScreenShare : startScreenShare}
         >
-          {isListening ? (
+          {isSharing ? (
             <>
-              <MicOff className="mr-2" />
-              Stop Listening
+              <MonitorOff className="mr-2" />
+              Stop Sharing
             </>
           ) : (
             <>
-              <Mic className="mr-2" />
-              Start Listening
+              <Monitor className="mr-2" />
+              Share Screen & Audio
             </>
           )}
         </Button>
-      )}
+        {isSharing && (
+          <Button 
+            variant={isListening ? "default" : "outline"}
+            onClick={toggleSpeechRecognition}
+          >
+            {isListening ? (
+              <>
+                <MicOff className="mr-2" />
+                Stop Listening
+              </>
+            ) : (
+              <>
+                <Mic className="mr-2" />
+                Start Listening
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+      
       {permissionDenied && (
-        <div className="mt-2 text-red-500 text-sm">
-          Microphone access denied. Please check your browser settings.
+        <div className="mt-2 text-red-500 text-sm flex items-center">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          Microphone access denied. Please check your browser settings and refresh the page.
+        </div>
+      )}
+      
+      {microphoneState === 'ready' && isListening && (
+        <div className="mt-2 text-green-500 text-sm">
+          Microphone active - speak clearly for best results.
         </div>
       )}
     </div>

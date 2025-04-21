@@ -25,7 +25,10 @@ const LiveInterview = () => {
   const [showSettings, setShowSettings] = useState(!getApiKey());
 
   const handleScreenCapture = (capturedText: string) => {
-    setQuestion(capturedText);
+    setQuestion(prev => {
+      const updatedText = prev ? `${prev}\n${capturedText}` : capturedText;
+      return updatedText;
+    });
   };
 
   const handleAIAssistance = (suggestion: string) => {
