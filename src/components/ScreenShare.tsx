@@ -15,7 +15,7 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   const [isListening, setIsListening] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptBufferRef = useRef<string[]>([]);
 
   const startScreenShare = async () => {
@@ -151,4 +151,3 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
 };
 
 export default ScreenShare;
-
