@@ -20,9 +20,13 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   // Fix the typing here by using NonNullable<> to avoid TS2552 error
   const recognitionRef = useRef<InstanceType<NonNullable<typeof SpeechRecognitionConstructor>> | null>(null);
   const transcriptBufferRef = useRef<string[]>([]);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const startScreenShare = async () => {
     try {
+      // Reset permission denied state on new attempt
+      setPermissionDenied(false);
+      
       const stream = await navigator.mediaDevices.getDisplayMedia({ 
         video: true,
         audio: true 
@@ -45,7 +49,17 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   };
 
   const startSpeechRecognition = () => {
-    if (SpeechRecognitionConstructor) {
+    if (!SpeechRecognitionConstructor) {
+      toast.error('Speech Recognition API not supported in this browser.');
+      return;
+    }
+    
+    try {
+      // Create new instance and clean up any previous one
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      
       recognitionRef.current = new SpeechRecognitionConstructor();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
@@ -57,6 +71,7 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
           .join(' ');
         
         if (transcript.trim()) {
+          console.log("Captured speech:", transcript);
           onScreenCapture(transcript);
           transcriptBufferRef.current.push(transcript);
           
@@ -68,18 +83,56 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
       };
 
       recognitionRef.current.onerror = (event) => {
-        console.error('Speech Recognition error:', event);
-        toast.error('Speech recognition error occurred.');
+        console.error('Speech Recognition error:', event.error, event.message);
+        
+        if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+          setPermissionDenied(true);
+          toast.error('Microphone access denied. Please allow microphone access in your browser settings.');
+        } else if (event.error === 'audio-capture') {
+          toast.error('No microphone detected or microphone is busy.');
+        } else if (event.error === 'network') {
+          toast.error('Network error occurred with speech recognition.');
+        } else {
+          toast.error(`Speech recognition error: ${event.error || 'Unknown error'}`);
+        }
+        
+        // Auto-restart on non-permission errors
+        if (event.error !== 'not-allowed' && event.error !== 'permission-denied' && isListening) {
+          setTimeout(() => {
+            if (isListening && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (e) {
+                console.error('Failed to restart speech recognition:', e);
+              }
+            }
+          }, 1000);
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognitionRef.current.onend = () => {
-        setIsListening(false);
+        // Only restart if it's supposed to be listening and wasn't stopped due to permission issues
+        if (isListening && !permissionDenied) {
+          try {
+            recognitionRef.current?.start();
+          } catch (e) {
+            console.error('Failed to restart speech recognition on end:', e);
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
       
       recognitionRef.current.start();
       setIsListening(true);
-    } else {
-      toast.error('Speech Recognition API not supported in this browser.');
+      toast.success("Speech recognition started");
+    } catch (error) {
+      console.error("Error starting speech recognition:", error);
+      toast.error("Failed to start speech recognition. Please try again.");
+      setIsListening(false);
     }
   };
 
@@ -112,8 +165,21 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
     
     setIsSharing(false);
     setIsListening(false);
+    setPermissionDenied(false);
     transcriptBufferRef.current = [];
     toast.info("Screen sharing and AI assistant stopped");
+  };
+
+  const toggleSpeechRecognition = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      toast.info("Speech recognition paused");
+    } else {
+      startSpeechRecognition();
+    }
   };
 
   return (
@@ -137,14 +203,7 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
       {isSharing && (
         <Button 
           variant={isListening ? "default" : "outline"}
-          onClick={() => {
-            if (isListening) {
-              recognitionRef.current?.stop();
-              setIsListening(false);
-            } else {
-              startSpeechRecognition();
-            }
-          }}
+          onClick={toggleSpeechRecognition}
         >
           {isListening ? (
             <>
@@ -159,9 +218,13 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
           )}
         </Button>
       )}
+      {permissionDenied && (
+        <div className="mt-2 text-red-500 text-sm">
+          Microphone access denied. Please check your browser settings.
+        </div>
+      )}
     </div>
   );
 };
 
 export default ScreenShare;
-
