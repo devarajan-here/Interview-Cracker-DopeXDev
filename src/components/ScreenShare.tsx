@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Monitor, MonitorOff, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
@@ -17,7 +17,8 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null);
+  // Fix the typing here by using NonNullable<> to avoid TS2552 error
+  const recognitionRef = useRef<InstanceType<NonNullable<typeof SpeechRecognitionConstructor>> | null>(null);
   const transcriptBufferRef = useRef<string[]>([]);
 
   const startScreenShare = async () => {
