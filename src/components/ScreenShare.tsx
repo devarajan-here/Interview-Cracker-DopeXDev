@@ -10,12 +10,14 @@ interface ScreenShareProps {
   onAIAssist?: (suggestion: string) => void;
 }
 
+// We create a local variable to access the SpeechRecognition constructor safely
+const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
 const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null);
   const transcriptBufferRef = useRef<string[]>([]);
 
   const startScreenShare = async () => {
@@ -42,8 +44,7 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
   };
 
   const startSpeechRecognition = () => {
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognitionConstructor) {
       recognitionRef.current = new SpeechRecognitionConstructor();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
@@ -64,9 +65,20 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
           }
         }
       };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech Recognition error:', event);
+        toast.error('Speech recognition error occurred.');
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
       
       recognitionRef.current.start();
       setIsListening(true);
+    } else {
+      toast.error('Speech Recognition API not supported in this browser.');
     }
   };
 
@@ -151,3 +163,4 @@ const ScreenShare = ({ onScreenCapture, onAIAssist }: ScreenShareProps) => {
 };
 
 export default ScreenShare;
+
