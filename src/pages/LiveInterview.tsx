@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,8 @@ import { toast } from "sonner";
 import { generateAnswer, getApiKey, setApiKey } from "@/services/apiService";
 import ApiKeyForm from "@/components/ApiKeyForm";
 import ScreenShare from "@/components/ScreenShare";
+import JobSelector from "@/components/JobSelector";
+import RealTimeSpeechProcessor from "@/components/RealTimeSpeechProcessor";
 
 import {
   Sheet,
@@ -23,6 +26,8 @@ const LiveInterview = () => {
   const [aiAssistance, setAIAssistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(!getApiKey());
+  const [selectedJob, setSelectedJob] = useState("");
+  const [speechHistory, setSpeechHistory] = useState<Array<{originalText: string, aiResponse: string, timestamp: Date}>>([]);
 
   const handleScreenCapture = (capturedText: string) => {
     setQuestion(prev => {
@@ -37,6 +42,17 @@ const LiveInterview = () => {
       description: suggestion,
       duration: 5000,
     });
+  };
+
+  const handleSpeechProcessed = (originalText: string, aiResponse: string) => {
+    const newEntry = {
+      originalText,
+      aiResponse,
+      timestamp: new Date()
+    };
+    setSpeechHistory(prev => [newEntry, ...prev]);
+    setAIAssistance(aiResponse);
+    toast.success("Speech processed and AI response ready");
   };
 
   const handleSubmit = async () => {
@@ -72,7 +88,7 @@ const LiveInterview = () => {
             <Button variant="ghost" className="mr-2" asChild>
               <a href="/">← Back</a>
             </Button>
-            <h1 className="text-2xl font-bold text-gray-900">Screen Interview Assistant</h1>
+            <h1 className="text-2xl font-bold text-gray-900">AI Interview Assistant</h1>
           </div>
           
           <Sheet open={showSettings} onOpenChange={setShowSettings}>
@@ -97,50 +113,65 @@ const LiveInterview = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">LockedIn AI Interview Assistant</h2>
-          
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column - Controls and Input */}
           <div className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <ScreenShare 
-                onScreenCapture={handleScreenCapture} 
-                onAIAssist={handleAIAssistance}
-              />
-              
-              <div className="relative flex-grow">
-                <Textarea 
-                  value={question} 
-                  onChange={(e) => setQuestion(e.target.value)} 
-                  placeholder="Captured text will appear here..." 
-                  className="min-h-[100px] w-full"
-                />
+            <JobSelector 
+              selectedJob={selectedJob} 
+              onJobChange={setSelectedJob} 
+            />
+            
+            <RealTimeSpeechProcessor 
+              jobType={selectedJob}
+              onSpeechProcessed={handleSpeechProcessed}
+            />
+            
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold mb-4">Screen & Audio Capture</h3>
+              <div className="space-y-4">
+                <div className="flex flex-col gap-4">
+                  <ScreenShare 
+                    onScreenCapture={handleScreenCapture} 
+                    onAIAssist={handleAIAssistance}
+                  />
+                  
+                  <Textarea 
+                    value={question} 
+                    onChange={(e) => setQuestion(e.target.value)} 
+                    placeholder="Captured text will appear here..." 
+                    className="min-h-[100px]"
+                  />
+                </div>
+                
+                <div className="flex gap-4">
+                  <Input
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    placeholder="Or type your question here..."
+                    className="flex-grow"
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                  />
+                  <Button onClick={handleSubmit} disabled={isLoading || !question}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Send
+                  </Button>
+                </div>
               </div>
             </div>
-            
+          </div>
+
+          {/* Right Column - Responses and History */}
+          <div className="space-y-6">
             {aiAssistance && (
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">AI Assistance</h3>
-                <p className="text-blue-800">{aiAssistance}</p>
+                <h3 className="font-semibold mb-2">Current AI Assistance</h3>
+                <p className="text-blue-800 text-sm">{aiAssistance}</p>
               </div>
             )}
             
-            <div className="flex gap-4">
-              <Input
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Or type your question here..."
-                className="flex-grow"
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              />
-              <Button onClick={handleSubmit} disabled={isLoading || !question}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Send
-              </Button>
-            </div>
-            
-            <div className="mt-8">
-              <h3 className="text-lg font-medium mb-2">AI Response:</h3>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold mb-4">AI Response</h3>
               <div className="border rounded-lg p-4 min-h-[200px] bg-gray-50">
                 {isLoading ? (
                   <div className="flex justify-center items-center h-full">
@@ -150,7 +181,7 @@ const LiveInterview = () => {
                 ) : answer ? (
                   <div className="prose max-w-none">
                     {answer.split('\n').map((line, index) => (
-                      <p key={index}>{line}</p>
+                      <p key={index} className="mb-2">{line}</p>
                     ))}
                   </div>
                 ) : (
@@ -160,6 +191,23 @@ const LiveInterview = () => {
                 )}
               </div>
             </div>
+
+            {speechHistory.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold mb-4">Speech Processing History</h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {speechHistory.map((entry, index) => (
+                    <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                      <p className="text-sm text-gray-600 mb-1">
+                        {entry.timestamp.toLocaleTimeString()}
+                      </p>
+                      <p className="text-sm font-medium mb-2">Spoken: "{entry.originalText}"</p>
+                      <p className="text-sm text-blue-700">AI: {entry.aiResponse}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
