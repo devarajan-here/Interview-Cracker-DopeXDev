@@ -29,17 +29,31 @@ const RecordingControls = ({
 
   return (
     <div className="flex items-center justify-between">
-      <h3 className="font-semibold">Real-Time Speech Processor</h3>
+      <div>
+        <h3 className="font-semibold">Real-Time Interview Assistant</h3>
+        {isRecording && (
+          <p className="text-sm text-green-600 mt-1">
+            🎤 Listening continuously - speak naturally!
+          </p>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         {isRecording && (
-          <span className="text-red-600 text-sm font-mono">
-            {formatTime(recordingTime)}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-red-600 text-sm font-mono">
+              {formatTime(recordingTime)}
+            </span>
+            <div className="flex items-center text-green-600">
+              <div className="animate-pulse rounded-full h-2 w-2 bg-green-600 mr-2"></div>
+              <span className="text-xs">LIVE</span>
+            </div>
+          </div>
         )}
         <Button
           variant={isRecording ? "destructive" : "default"}
           onClick={isRecording ? onStopRecording : onStartRecording}
           disabled={isProcessing || !selectedMicId || !jobType}
+          size="sm"
         >
           {isRecording ? (
             <>
@@ -49,7 +63,7 @@ const RecordingControls = ({
           ) : (
             <>
               <Mic className="mr-2 h-4 w-4" />
-              Start Recording
+              Start Live Recording
             </>
           )}
         </Button>

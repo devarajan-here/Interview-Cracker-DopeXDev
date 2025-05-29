@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { toast } from "sonner";
 import { processSpeechForInterview } from '@/services/speechToApiService';
 import { convertAudioToText } from '@/services/audioToTextService';
@@ -7,6 +7,7 @@ import { useAudioRecording } from '@/hooks/useAudioRecording';
 import RecordingControls from './RecordingControls';
 import RecordingStatus from './RecordingStatus';
 import TranscriptDisplay from './TranscriptDisplay';
+import StreamingResponse from './StreamingResponse';
 
 interface RealTimeSpeechProcessorProps {
   jobType: string;
@@ -17,8 +18,16 @@ interface RealTimeSpeechProcessorProps {
 const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: RealTimeSpeechProcessorProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState("");
+  const [streamingResponse, setStreamingResponse] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const processAudioBlob = async (audioBlob: Blob) => {
+    // Clear any existing timeout
+    if (processingTimeoutRef.current) {
+      clearTimeout(processingTimeoutRef.current);
+    }
+
     setIsProcessing(true);
     setCurrentTranscript("Converting audio to text...");
 
@@ -29,7 +38,6 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
       const transcribedText = await convertAudioToText(audioBlob);
       
       if (!transcribedText.trim()) {
-        toast.warning('No speech detected in the recording');
         setCurrentTranscript("");
         return;
       }
@@ -37,18 +45,36 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
       setCurrentTranscript(transcribedText);
       console.log(`Processing speech for ${jobType}:`, transcribedText);
 
-      // Process with AI
+      // Start streaming response
+      setIsStreaming(true);
+      setStreamingResponse("");
+      
+      // Simulate streaming response (replace with actual streaming API call)
       const aiResponse = await processSpeechForInterview(transcribedText, jobType);
+      await simulateStreamingText(aiResponse);
+      
       onSpeechProcessed(transcribedText, aiResponse);
-      toast.success('Speech processed successfully');
       
     } catch (error) {
       console.error('Error processing audio:', error);
       toast.error('Failed to process audio');
       setCurrentTranscript("");
+      setStreamingResponse("");
+      setIsStreaming(false);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const simulateStreamingText = async (text: string) => {
+    setStreamingResponse("");
+    const words = text.split(' ');
+    
+    for (let i = 0; i < words.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 50)); // Adjust speed as needed
+      setStreamingResponse(prev => prev + (i === 0 ? words[i] : ' ' + words[i]));
+    }
+    setIsStreaming(false);
   };
 
   const { isRecording, recordingTime, startRecording, stopRecording } = useAudioRecording(
@@ -61,7 +87,20 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
       toast.error('Please select a job type first');
       return;
     }
+    
+    // Clear previous responses when starting new recording
+    setStreamingResponse("");
+    setCurrentTranscript("");
+    setIsStreaming(false);
+    
     await startRecording();
+    toast.success('Continuous recording started - speak naturally!');
+  };
+
+  const handleStopRecording = () => {
+    stopRecording();
+    setIsStreaming(false);
+    toast.info('Recording stopped');
   };
 
   return (
@@ -73,7 +112,7 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
         jobType={jobType}
         recordingTime={recordingTime}
         onStartRecording={handleStartRecording}
-        onStopRecording={stopRecording}
+        onStopRecording={handleStopRecording}
       />
 
       <RecordingStatus
@@ -84,6 +123,12 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
       />
 
       <TranscriptDisplay currentTranscript={currentTranscript} />
+      
+      <StreamingResponse 
+        response={streamingResponse} 
+        isStreaming={isStreaming}
+        isRecording={isRecording}
+      />
     </div>
   );
 };

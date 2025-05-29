@@ -1,7 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { toast } from "sonner";
-import { convertAudioToText } from '@/services/audioToTextService';
 
 export const useAudioRecording = (selectedMicId: string, onAudioProcessed: (audioBlob: Blob) => void) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -11,12 +10,16 @@ export const useAudioRecording = (selectedMicId: string, onAudioProcessed: (audi
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
+  const processingIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       stopRecording();
       if (recordingTimerRef.current) {
         window.clearInterval(recordingTimerRef.current);
+      }
+      if (processingIntervalRef.current) {
+        window.clearInterval(processingIntervalRef.current);
       }
     };
   }, []);
@@ -48,7 +51,7 @@ export const useAudioRecording = (selectedMicId: string, onAudioProcessed: (audi
       mediaStreamRef.current = stream;
       audioChunksRef.current = [];
 
-      // Create MediaRecorder
+      // Create MediaRecorder with smaller time slices for continuous processing
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
       });
@@ -61,15 +64,8 @@ export const useAudioRecording = (selectedMicId: string, onAudioProcessed: (audi
         }
       };
 
-      mediaRecorder.onstop = async () => {
-        if (audioChunksRef.current.length > 0) {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          onAudioProcessed(audioBlob);
-        }
-      };
-
-      // Start recording
-      mediaRecorder.start(1000); // Collect data every second
+      // Process audio chunks every 3 seconds while recording
+      mediaRecorder.start(3000); // Collect data every 3 seconds
       setIsRecording(true);
       setRecordingTime(0);
       
@@ -78,7 +74,16 @@ export const useAudioRecording = (selectedMicId: string, onAudioProcessed: (audi
         setRecordingTime(prev => prev + 1);
       }, 1000);
 
-      toast.success('Recording started with selected microphone');
+      // Set up continuous processing
+      processingIntervalRef.current = window.setInterval(() => {
+        if (audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob([...audioChunksRef.current], { type: 'audio/webm' });
+          onAudioProcessed(audioBlob);
+          // Don't clear chunks to maintain continuous recording
+        }
+      }, 3000);
+
+      console.log('Continuous recording started with selected microphone');
     } catch (error) {
       console.error('Error starting recording:', error);
       toast.error('Failed to access selected microphone');
@@ -100,9 +105,14 @@ export const useAudioRecording = (selectedMicId: string, onAudioProcessed: (audi
       recordingTimerRef.current = null;
     }
     
+    if (processingIntervalRef.current) {
+      window.clearInterval(processingIntervalRef.current);
+      processingIntervalRef.current = null;
+    }
+    
     setIsRecording(false);
     setRecordingTime(0);
-    toast.info('Recording stopped, processing audio...');
+    console.log('Recording stopped');
   };
 
   return {
