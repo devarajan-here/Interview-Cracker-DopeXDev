@@ -1,9 +1,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff } from "lucide-react";
+import { Mic, MicOff, Square } from "lucide-react";
 import { toast } from "sonner";
 import { processSpeechForInterview } from '@/services/speechToApiService';
+import { convertAudioToText } from '@/services/audioToTextService';
 
 interface RealTimeSpeechProcessorProps {
   jobType: string;
@@ -11,43 +12,34 @@ interface RealTimeSpeechProcessorProps {
   selectedMicId: string;
 }
 
-const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
-
 const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: RealTimeSpeechProcessorProps) => {
-  const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState("");
-  const recognitionRef = useRef<InstanceType<typeof SpeechRecognitionConstructor> | null>(null);
-  const processingTimeoutRef = useRef<number | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (processingTimeoutRef.current) {
-        window.clearTimeout(processingTimeoutRef.current);
+      stopRecording();
+      if (recordingTimerRef.current) {
+        window.clearInterval(recordingTimerRef.current);
       }
-      stopListening();
     };
   }, []);
 
-  // Stop and restart recognition when microphone changes
+  // Stop recording when microphone changes
   useEffect(() => {
-    if (isListening) {
-      stopListening();
-      setTimeout(() => {
-        if (selectedMicId) {
-          startListening();
-        }
-      }, 500);
+    if (isRecording) {
+      stopRecording();
     }
   }, [selectedMicId]);
 
-  const startListening = async () => {
-    if (!SpeechRecognitionConstructor) {
-      toast.error('Speech Recognition not supported in this browser');
-      return;
-    }
-
+  const startRecording = async () => {
     if (!jobType) {
       toast.error('Please select a job type first');
       return;
@@ -61,73 +53,57 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
     try {
       // Request access to the selected microphone
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: selectedMicId } }
+        audio: { 
+          deviceId: { exact: selectedMicId },
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
       });
+      
       mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
 
-      recognitionRef.current = new SpeechRecognitionConstructor();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+      // Create MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
 
-      recognitionRef.current.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        const fullTranscript = finalTranscript || interimTranscript;
-        setCurrentTranscript(fullTranscript);
-
-        // Process speech after 2 seconds of final result
-        if (finalTranscript.trim()) {
-          if (processingTimeoutRef.current) {
-            window.clearTimeout(processingTimeoutRef.current);
-          }
-          
-          processingTimeoutRef.current = window.setTimeout(() => {
-            processSpokenText(finalTranscript.trim());
-          }, 2000);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
       };
 
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        toast.error(`Speech recognition error: ${event.error}`);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        if (isListening) {
-          // Restart if it was supposed to be listening
-          setTimeout(() => {
-            if (isListening && recognitionRef.current) {
-              recognitionRef.current.start();
-            }
-          }, 1000);
+      mediaRecorder.onstop = async () => {
+        if (audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          await processAudioBlob(audioBlob);
         }
       };
 
-      recognitionRef.current.start();
-      setIsListening(true);
-      toast.success('Speech recognition started with selected microphone');
+      // Start recording
+      mediaRecorder.start(1000); // Collect data every second
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      // Start timer
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+      toast.success('Recording started with selected microphone');
     } catch (error) {
-      console.error('Error starting speech recognition:', error);
+      console.error('Error starting recording:', error);
       toast.error('Failed to access selected microphone');
     }
   };
 
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
     }
     
     if (mediaStreamRef.current) {
@@ -135,58 +111,95 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
       mediaStreamRef.current = null;
     }
     
-    setIsListening(false);
-    setCurrentTranscript("");
-    if (processingTimeoutRef.current) {
-      window.clearTimeout(processingTimeoutRef.current);
+    if (recordingTimerRef.current) {
+      window.clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
     }
-    toast.info('Speech recognition stopped');
+    
+    setIsRecording(false);
+    setRecordingTime(0);
+    toast.info('Recording stopped, processing audio...');
   };
 
-  const processSpokenText = async (text: string) => {
-    if (!text.trim()) return;
-
+  const processAudioBlob = async (audioBlob: Blob) => {
     setIsProcessing(true);
-    console.log(`Processing speech for ${jobType}:`, text);
+    setCurrentTranscript("Converting audio to text...");
 
     try {
-      const aiResponse = await processSpeechForInterview(text, jobType);
-      onSpeechProcessed(text, aiResponse);
+      console.log('Processing audio blob:', audioBlob.size, 'bytes');
+      
+      // Convert audio to text
+      const transcribedText = await convertAudioToText(audioBlob);
+      
+      if (!transcribedText.trim()) {
+        toast.warning('No speech detected in the recording');
+        setCurrentTranscript("");
+        return;
+      }
+
+      setCurrentTranscript(transcribedText);
+      console.log(`Processing speech for ${jobType}:`, transcribedText);
+
+      // Process with AI
+      const aiResponse = await processSpeechForInterview(transcribedText, jobType);
+      onSpeechProcessed(transcribedText, aiResponse);
       toast.success('Speech processed successfully');
+      
     } catch (error) {
-      console.error('Error processing speech:', error);
-      toast.error('Failed to process speech');
+      console.error('Error processing audio:', error);
+      toast.error('Failed to process audio');
+      setCurrentTranscript("");
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Real-Time Speech Processor</h3>
-        <Button
-          variant={isListening ? "destructive" : "default"}
-          onClick={isListening ? stopListening : startListening}
-          disabled={isProcessing || !selectedMicId}
-        >
-          {isListening ? (
-            <>
-              <MicOff className="mr-2 h-4 w-4" />
-              Stop Listening
-            </>
-          ) : (
-            <>
-              <Mic className="mr-2 h-4 w-4" />
-              Start Listening
-            </>
+        <div className="flex items-center gap-2">
+          {isRecording && (
+            <span className="text-red-600 text-sm font-mono">
+              {formatTime(recordingTime)}
+            </span>
           )}
-        </Button>
+          <Button
+            variant={isRecording ? "destructive" : "default"}
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={isProcessing || !selectedMicId || !jobType}
+          >
+            {isRecording ? (
+              <>
+                <Square className="mr-2 h-4 w-4" />
+                Stop Recording
+              </>
+            ) : (
+              <>
+                <Mic className="mr-2 h-4 w-4" />
+                Start Recording
+              </>
+            )}
+          </Button>
+        </div>
       </div>
+
+      {isRecording && (
+        <div className="flex items-center text-red-600">
+          <div className="animate-pulse rounded-full h-3 w-3 bg-red-600 mr-2"></div>
+          Recording audio from selected microphone...
+        </div>
+      )}
 
       {currentTranscript && (
         <div className="p-3 bg-white rounded border">
-          <p className="text-sm text-gray-600 mb-1">Current Speech:</p>
+          <p className="text-sm text-gray-600 mb-1">Transcribed Speech:</p>
           <p className="text-sm">{currentTranscript}</p>
         </div>
       )}
