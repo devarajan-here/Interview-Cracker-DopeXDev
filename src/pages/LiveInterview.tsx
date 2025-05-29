@@ -10,6 +10,7 @@ import ApiKeyForm from "@/components/ApiKeyForm";
 import ScreenShare from "@/components/ScreenShare";
 import JobSelector from "@/components/JobSelector";
 import RealTimeSpeechProcessor from "@/components/RealTimeSpeechProcessor";
+import MicrophoneSelector from "@/components/MicrophoneSelector";
 
 import {
   Sheet,
@@ -27,6 +28,7 @@ const LiveInterview = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(!getApiKey());
   const [selectedJob, setSelectedJob] = useState("");
+  const [selectedMicId, setSelectedMicId] = useState("");
   const [speechHistory, setSpeechHistory] = useState<Array<{originalText: string, aiResponse: string, timestamp: Date}>>([]);
 
   const handleScreenCapture = (capturedText: string) => {
@@ -122,8 +124,14 @@ const LiveInterview = () => {
               onJobChange={setSelectedJob} 
             />
             
+            <MicrophoneSelector 
+              selectedMicId={selectedMicId}
+              onMicrophoneSelect={setSelectedMicId}
+            />
+            
             <RealTimeSpeechProcessor 
               jobType={selectedJob}
+              selectedMicId={selectedMicId}
               onSpeechProcessed={handleSpeechProcessed}
             />
             

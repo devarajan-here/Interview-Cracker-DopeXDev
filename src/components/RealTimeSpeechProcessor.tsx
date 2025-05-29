@@ -1,23 +1,25 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Play, Pause } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { processSpeechForInterview } from '@/services/speechToApiService';
 
 interface RealTimeSpeechProcessorProps {
   jobType: string;
   onSpeechProcessed: (originalText: string, aiResponse: string) => void;
+  selectedMicId: string;
 }
 
 const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed }: RealTimeSpeechProcessorProps) => {
+const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: RealTimeSpeechProcessorProps) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState("");
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognitionConstructor> | null>(null);
   const processingTimeoutRef = useRef<number | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     return () => {
@@ -28,7 +30,19 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed }: RealTimeSpeechP
     };
   }, []);
 
-  const startListening = () => {
+  // Stop and restart recognition when microphone changes
+  useEffect(() => {
+    if (isListening) {
+      stopListening();
+      setTimeout(() => {
+        if (selectedMicId) {
+          startListening();
+        }
+      }, 500);
+    }
+  }, [selectedMicId]);
+
+  const startListening = async () => {
     if (!SpeechRecognitionConstructor) {
       toast.error('Speech Recognition not supported in this browser');
       return;
@@ -39,7 +53,18 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed }: RealTimeSpeechP
       return;
     }
 
+    if (!selectedMicId) {
+      toast.error('Please select a microphone first');
+      return;
+    }
+
     try {
+      // Request access to the selected microphone
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: selectedMicId } }
+      });
+      mediaStreamRef.current = stream;
+
       recognitionRef.current = new SpeechRecognitionConstructor();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
@@ -92,10 +117,10 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed }: RealTimeSpeechP
 
       recognitionRef.current.start();
       setIsListening(true);
-      toast.success('Speech recognition started');
+      toast.success('Speech recognition started with selected microphone');
     } catch (error) {
       console.error('Error starting speech recognition:', error);
-      toast.error('Failed to start speech recognition');
+      toast.error('Failed to access selected microphone');
     }
   };
 
@@ -104,6 +129,12 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed }: RealTimeSpeechP
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
+    
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    
     setIsListening(false);
     setCurrentTranscript("");
     if (processingTimeoutRef.current) {
@@ -137,7 +168,7 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed }: RealTimeSpeechP
         <Button
           variant={isListening ? "destructive" : "default"}
           onClick={isListening ? stopListening : startListening}
-          disabled={isProcessing}
+          disabled={isProcessing || !selectedMicId}
         >
           {isListening ? (
             <>
@@ -165,6 +196,12 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed }: RealTimeSpeechP
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
           Processing speech for {jobType} interview...
         </div>
+      )}
+
+      {!selectedMicId && (
+        <p className="text-sm text-amber-600">
+          Please select a microphone above to enable speech processing.
+        </p>
       )}
 
       {!jobType && (
