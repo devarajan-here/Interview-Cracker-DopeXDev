@@ -27,7 +27,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       try {
         // Check if user has verified payment and active subscription
         const { data: profile, error } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('payment_verified, subscription_status')
           .eq('id', user.id)
           .single();
@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
           return;
         }
 
-        if (!profile?.payment_verified || profile?.subscription_status !== 'active') {
+        if (!profile || !profile.payment_verified || profile.subscription_status !== 'active') {
           navigate('/payment');
           return;
         }

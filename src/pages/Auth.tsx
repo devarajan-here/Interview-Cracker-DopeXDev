@@ -33,12 +33,12 @@ const Auth = () => {
       if (session) {
         // Check if user has verified payment
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('payment_verified, subscription_status')
           .eq('id', session.user.id)
           .single();
 
-        if (profile?.payment_verified && profile?.subscription_status === 'active') {
+        if (profile && profile.payment_verified && profile.subscription_status === 'active') {
           navigate('/live-interview');
         }
       }
@@ -99,11 +99,11 @@ const Auth = () => {
       if (data.user) {
         // Update profile to mark payment as verified
         const { error: profileError } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .update({
             payment_verified: true,
             subscription_status: 'active'
-          })
+          } as any)
           .eq('id', data.user.id);
 
         if (profileError) {
@@ -137,12 +137,12 @@ const Auth = () => {
       if (data.user) {
         // Check payment status
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('payment_verified, subscription_status')
           .eq('id', data.user.id)
           .single();
 
-        if (!profile?.payment_verified || profile?.subscription_status !== 'active') {
+        if (!profile || !profile.payment_verified || profile.subscription_status !== 'active') {
           toast.error("Payment verification required. Please complete payment.");
           await supabase.auth.signOut();
           navigate('/payment');
