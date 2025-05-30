@@ -3,14 +3,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Settings } from "lucide-react";
+import { Send, Loader2, Settings, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { generateAnswer, getApiKey, setApiKey } from "@/services/apiService";
-import ApiKeyForm from "@/components/ApiKeyForm";
+import SecureApiKeyForm from "@/components/SecureApiKeyForm";
 import ScreenShare from "@/components/ScreenShare";
 import JobSelector from "@/components/JobSelector";
 import RealTimeSpeechProcessor from "@/components/RealTimeSpeechProcessor";
 import MicrophoneSelector from "@/components/MicrophoneSelector";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 import {
   Sheet,
@@ -30,6 +32,8 @@ const LiveInterview = () => {
   const [selectedJob, setSelectedJob] = useState("");
   const [selectedMicId, setSelectedMicId] = useState("");
   const [speechHistory, setSpeechHistory] = useState<Array<{originalText: string, aiResponse: string, timestamp: Date}>>([]);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleScreenCapture = (capturedText: string) => {
     setQuestion(prev => {
@@ -82,36 +86,50 @@ const LiveInterview = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <Button variant="ghost" className="mr-2" asChild>
-              <a href="/">← Back</a>
-            </Button>
             <h1 className="text-2xl font-bold text-gray-900">AI Interview Assistant</h1>
+            {user && (
+              <span className="ml-4 text-sm text-gray-600">
+                Welcome, {user.email}
+              </span>
+            )}
           </div>
           
-          <Sheet open={showSettings} onOpenChange={setShowSettings}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>API Settings</SheetTitle>
-                <SheetDescription>
-                  Configure your OpenRouter API key to use the interview assistant.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="py-4">
-                <ApiKeyForm onSave={() => setShowSettings(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
+          <div className="flex items-center space-x-2">
+            <Sheet open={showSettings} onOpenChange={setShowSettings}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>API Settings</SheetTitle>
+                  <SheetDescription>
+                    Configure your OpenRouter API key securely.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="py-4">
+                  <SecureApiKeyForm onSave={() => setShowSettings(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
+            
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
