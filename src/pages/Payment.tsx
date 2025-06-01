@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,8 +20,8 @@ const Payment = () => {
   const [phone, setPhone] = useState("");
   const navigate = useNavigate();
 
-  // You'll need to replace this with your actual Razorpay Key ID
-  const RAZORPAY_KEY_ID = 'rzp_test_YOUR_KEY_ID'; // TODO: Replace with actual key
+  // Using test key - this will be replaced by the actual key from your Razorpay dashboard
+  const RAZORPAY_KEY_ID = 'rzp_test_your_actual_key_here'; // You'll need to replace this with your actual test key
 
   useEffect(() => {
     // Load Razorpay script
