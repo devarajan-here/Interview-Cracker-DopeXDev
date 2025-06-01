@@ -15,6 +15,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [hasAccess, setHasAccess] = useState(false);
   const navigate = useNavigate();
 
+  // Admin email with bypass access
+  const ADMIN_EMAIL = 'draxmoon01@gmail.com';
+
   useEffect(() => {
     const verifyAccess = async () => {
       if (isLoading) return;
@@ -25,9 +28,17 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       }
 
       try {
+        // Check if user is admin - bypass payment verification
+        if (user.email === ADMIN_EMAIL) {
+          console.log('Admin access granted for:', user.email);
+          setHasAccess(true);
+          setIsVerifying(false);
+          return;
+        }
+
         // Check if user has verified payment and active subscription
         const { data: profile, error } = await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .select('payment_verified, subscription_status')
           .eq('id', user.id)
           .single();

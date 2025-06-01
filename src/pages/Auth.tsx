@@ -22,6 +22,10 @@ const Auth = () => {
   const paymentVerified = searchParams.get('payment_verified') === 'true';
   const prefilledEmail = searchParams.get('email') || '';
 
+  // Admin credentials
+  const ADMIN_EMAIL = 'draxmoon01@gmail.com';
+  const ADMIN_PASSWORD = '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';
+
   useEffect(() => {
     if (prefilledEmail) {
       setEmail(prefilledEmail);
@@ -31,9 +35,16 @@ const Auth = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // Check if user is admin - bypass payment verification
+        if (session.user.email === ADMIN_EMAIL) {
+          console.log('Admin user detected, bypassing payment check');
+          navigate('/live-interview');
+          return;
+        }
+
         // Check if user has verified payment
         const { data: profile } = await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .select('payment_verified, subscription_status')
           .eq('id', session.user.id)
           .single();
@@ -75,7 +86,8 @@ const Auth = () => {
   const handleSignUp = async () => {
     if (!validateForm(true)) return;
 
-    if (!paymentVerified) {
+    // Allow admin to sign up without payment verification
+    if (email !== ADMIN_EMAIL && !paymentVerified) {
       toast.error("Please complete payment first");
       navigate('/payment');
       return;
@@ -97,20 +109,21 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Update profile to mark payment as verified
+        // Update profile to mark payment as verified (or admin status)
+        const isAdmin = email === ADMIN_EMAIL;
         const { error: profileError } = await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .update({
             payment_verified: true,
             subscription_status: 'active'
-          } as any)
+          })
           .eq('id', data.user.id);
 
         if (profileError) {
           console.error('Profile update error:', profileError);
         }
 
-        toast.success("Account created successfully! Welcome!");
+        toast.success(isAdmin ? "Admin account created successfully!" : "Account created successfully! Welcome!");
         navigate('/live-interview');
       }
     } catch (error: any) {
@@ -135,9 +148,17 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Check payment status
+        // Check if user is admin - bypass payment verification
+        if (data.user.email === ADMIN_EMAIL) {
+          console.log('Admin login successful');
+          toast.success("Welcome back, Admin!");
+          navigate('/live-interview');
+          return;
+        }
+
+        // Check payment status for regular users
         const { data: profile } = await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .select('payment_verified, subscription_status')
           .eq('id', data.user.id)
           .single();

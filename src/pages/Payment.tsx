@@ -21,6 +21,9 @@ const Payment = () => {
   const [phone, setPhone] = useState("");
   const navigate = useNavigate();
 
+  // You'll need to replace this with your actual Razorpay Key ID
+  const RAZORPAY_KEY_ID = 'rzp_test_YOUR_KEY_ID'; // TODO: Replace with actual key
+
   useEffect(() => {
     // Load Razorpay script
     const script = document.createElement('script');
@@ -60,11 +63,12 @@ const Payment = () => {
     setIsLoading(true);
 
     try {
-      // Create order via our backend
-      const orderResponse = await fetch('/api/create-payment-order', {
+      // Create order via Supabase Edge Function
+      const orderResponse = await fetch(`https://xemlhjvuqxxyswyzyozy.supabase.co/functions/v1/create-payment-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlbWxoanZ1cXh4eXN3eXp5b3p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MjA2MDMsImV4cCI6MjA2NDA5NjYwM30.URA-BboCjVoSjRctpakFJ7CH1A_WwTF_Br7rRKUyKIs`
         },
         body: JSON.stringify({
           amount: 7000, // ₹70 in paise
@@ -85,7 +89,7 @@ const Payment = () => {
 
       // Configure Razorpay options
       const options = {
-        key: 'rzp_test_YOUR_KEY_ID', // Replace with your Razorpay key
+        key: RAZORPAY_KEY_ID,
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: 'AI Interview Assistant',
@@ -100,12 +104,13 @@ const Payment = () => {
           color: '#3B82F6',
         },
         handler: async (response: any) => {
-          // Verify payment on backend
+          // Verify payment via Supabase Edge Function
           try {
-            const verifyResponse = await fetch('/api/verify-payment', {
+            const verifyResponse = await fetch(`https://xemlhjvuqxxyswyzyozy.supabase.co/functions/v1/verify-payment`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlbWxoanZ1cXh4eXN3eXp5b3p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MjA2MDMsImV4cCI6MjA2NDA5NjYwM30.URA-BboCjVoSjRctpakFJ7CH1A_WwTF_Br7rRKUyKIs`
               },
               body: JSON.stringify({
                 payment_id: response.razorpay_payment_id,
