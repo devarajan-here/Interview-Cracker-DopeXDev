@@ -20,8 +20,8 @@ const Payment = () => {
   const [phone, setPhone] = useState("");
   const navigate = useNavigate();
 
-  // Using test key - this will be replaced by the actual key from your Razorpay dashboard
-  const RAZORPAY_KEY_ID = 'rzp_test_your_actual_key_here'; // You'll need to replace this with your actual test key
+  // Using live Razorpay credentials
+  const RAZORPAY_KEY_ID = 'rzp_live_zwZIrpd1jClmwz';
 
   useEffect(() => {
     // Load Razorpay script
