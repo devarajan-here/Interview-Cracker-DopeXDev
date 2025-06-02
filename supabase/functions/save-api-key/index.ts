@@ -36,25 +36,32 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Simple encryption (in production, use proper encryption)
+    // Create a proper 32-byte key for AES-256-GCM
     const encoder = new TextEncoder()
-    const data = encoder.encode(api_key)
+    const keyMaterial = encoder.encode('ai-interview-assistant-secret-key32')
+    
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode('your-32-character-secret-key!'),
+      keyMaterial,
       { name: 'AES-GCM' },
       false,
       ['encrypt']
     )
     
     const iv = crypto.getRandomValues(new Uint8Array(12))
+    const data = encoder.encode(api_key)
+    
     const encrypted = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       key,
       data
     )
     
-    const encryptedKey = btoa(String.fromCharCode(...new Uint8Array(encrypted))) + ':' + btoa(String.fromCharCode(...iv))
+    // Convert to base64 for storage
+    const encryptedArray = new Uint8Array(encrypted)
+    const encryptedBase64 = btoa(String.fromCharCode(...encryptedArray))
+    const ivBase64 = btoa(String.fromCharCode(...iv))
+    const encryptedKey = `${encryptedBase64}:${ivBase64}`
 
     // Store encrypted API key
     const { error: insertError } = await supabase
