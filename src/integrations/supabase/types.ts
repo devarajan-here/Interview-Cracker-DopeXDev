@@ -19,6 +19,7 @@ export type Database = {
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
           status: string | null
+          user_id: string | null
         }
         Insert: {
           amount?: number | null
@@ -29,6 +30,7 @@ export type Database = {
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string | null
+          user_id?: string | null
         }
         Update: {
           amount?: number | null
@@ -39,6 +41,7 @@ export type Database = {
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
