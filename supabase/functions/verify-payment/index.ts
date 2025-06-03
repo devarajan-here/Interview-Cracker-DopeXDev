@@ -4,7 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const razorpayKeySecret = Deno.env.get('RAZORPAY_KEY_SECRET')!
+const razorpayWebhookSecret = Deno.env.get('RAZORPAY_WEBHOOK_SECRET')!
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -14,6 +14,58 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
+    // Handle webhook from Razorpay
+    if (req.headers.get('x-razorpay-signature')) {
+      console.log('Processing Razorpay webhook')
+      
+      const body = await req.text()
+      const signature = req.headers.get('x-razorpay-signature')!
+      
+      // Verify webhook signature
+      const crypto = await import('node:crypto')
+      const expectedSignature = crypto
+        .createHmac('sha256', razorpayWebhookSecret)
+        .update(body)
+        .digest('hex')
+      
+      if (expectedSignature !== signature) {
+        console.error('Invalid webhook signature')
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
+      const webhookData = JSON.parse(body)
+      console.log('Webhook event:', webhookData.event)
+      
+      if (webhookData.event === 'payment.captured') {
+        const payment = webhookData.payload.payment.entity
+        console.log('Payment captured:', payment.id)
+        
+        // Update payment record
+        const { error: updateError } = await supabase
+          .from('payments')
+          .update({ status: 'completed' })
+          .eq('razorpay_payment_id', payment.id)
+        
+        if (updateError) {
+          console.error('Failed to update payment:', updateError)
+        }
+        
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // Handle direct payment verification (existing functionality)
     const { payment_id, order_id, signature, customer_details } = await req.json()
 
     if (!payment_id || !order_id || !signature) {
@@ -24,6 +76,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify payment signature
+    const razorpayKeySecret = Deno.env.get('RAZORPAY_KEY_SECRET')!
     const crypto = await import('node:crypto')
     const expectedSignature = crypto
       .createHmac('sha256', razorpayKeySecret)
