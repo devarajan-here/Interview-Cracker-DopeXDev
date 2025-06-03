@@ -21,44 +21,65 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
   const [streamingResponse, setStreamingResponse] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProcessedTime = useRef<number>(0);
 
   const processAudioBlob = async (audioBlob: Blob) => {
+    // Prevent processing too frequently (minimum 2 second gap)
+    const now = Date.now();
+    if (now - lastProcessedTime.current < 2000) {
+      console.log('Skipping processing - too frequent');
+      return;
+    }
+    lastProcessedTime.current = now;
+
     // Clear any existing timeout
     if (processingTimeoutRef.current) {
       clearTimeout(processingTimeoutRef.current);
     }
 
+    console.log('Starting audio processing...');
     setIsProcessing(true);
-    setCurrentTranscript("Converting audio to text...");
+    setCurrentTranscript("🎤 Converting speech to text...");
 
     try {
-      console.log('Processing audio blob:', audioBlob.size, 'bytes');
+      console.log('Processing audio blob:', {
+        size: audioBlob.size,
+        type: audioBlob.type,
+        jobType: jobType
+      });
       
       // Convert audio to text
       const transcribedText = await convertAudioToText(audioBlob);
       
       if (!transcribedText.trim()) {
+        console.log('No transcription received');
         setCurrentTranscript("");
         return;
       }
 
+      console.log('Transcription received:', transcribedText);
       setCurrentTranscript(transcribedText);
-      console.log(`Processing speech for ${jobType}:`, transcribedText);
 
       // Start streaming response
       setIsStreaming(true);
       setStreamingResponse("");
       
-      // Simulate streaming response (replace with actual streaming API call)
+      console.log(`Processing speech for ${jobType} interview`);
+      
+      // Get AI response
       const aiResponse = await processSpeechForInterview(transcribedText, jobType);
+      console.log('AI response received:', aiResponse);
+      
+      // Simulate streaming
       await simulateStreamingText(aiResponse);
       
+      // Notify parent component
       onSpeechProcessed(transcribedText, aiResponse);
       
     } catch (error) {
       console.error('Error processing audio:', error);
-      toast.error('Failed to process audio');
-      setCurrentTranscript("");
+      toast.error('Failed to process speech - please try again');
+      setCurrentTranscript("❌ Failed to process speech");
       setStreamingResponse("");
       setIsStreaming(false);
     } finally {
@@ -71,7 +92,7 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
     const words = text.split(' ');
     
     for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50)); // Adjust speed as needed
+      await new Promise(resolve => setTimeout(resolve, 80)); // Slightly slower for better effect
       setStreamingResponse(prev => prev + (i === 0 ? words[i] : ' ' + words[i]));
     }
     setIsStreaming(false);
@@ -88,16 +109,25 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
       return;
     }
     
+    if (!selectedMicId) {
+      toast.error('Please select a microphone first');
+      return;
+    }
+    
     // Clear previous responses when starting new recording
     setStreamingResponse("");
     setCurrentTranscript("");
     setIsStreaming(false);
+    lastProcessedTime.current = 0;
+    
+    console.log('Starting recording with:', { jobType, selectedMicId });
     
     await startRecording();
-    toast.success('Continuous recording started - speak naturally!');
+    toast.success('🎤 Real-time recording started - speak naturally!');
   };
 
   const handleStopRecording = () => {
+    console.log('Stopping recording');
     stopRecording();
     setIsStreaming(false);
     toast.info('Recording stopped');
