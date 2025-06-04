@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,9 @@ const Payment = () => {
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, []);
 
@@ -81,6 +84,7 @@ const Payment = () => {
       });
 
       const orderData = await orderResponse.json();
+      console.log('Order response:', orderData);
 
       if (!orderData.success) {
         throw new Error(orderData.error || 'Failed to create order');
@@ -105,6 +109,8 @@ const Payment = () => {
         handler: async (response: any) => {
           // Verify payment via Supabase Edge Function
           try {
+            console.log('Payment successful, verifying...', response);
+            
             const verifyResponse = await fetch(`https://xemlhjvuqxxyswyzyozy.supabase.co/functions/v1/verify-payment`, {
               method: 'POST',
               headers: {
@@ -120,13 +126,20 @@ const Payment = () => {
             });
 
             const verifyData = await verifyResponse.json();
+            console.log('Verification response:', verifyData);
             
             if (verifyData.success) {
-              toast.success("Payment successful! Redirecting to sign up...");
-              // Redirect to auth page with payment verification
-              navigate('/auth?payment_verified=true&email=' + encodeURIComponent(email));
+              toast.success("Payment successful! Redirecting to sign in...");
+              // Clear form and redirect to auth page
+              setEmail("");
+              setName("");
+              setPhone("");
+              setTimeout(() => {
+                navigate('/auth?payment_verified=true&email=' + encodeURIComponent(email));
+              }, 2000);
             } else {
               toast.error("Payment verification failed. Please contact support.");
+              console.error('Verification failed:', verifyData);
             }
           } catch (error) {
             console.error('Payment verification error:', error);
@@ -135,18 +148,28 @@ const Payment = () => {
         },
         modal: {
           ondismiss: () => {
+            console.log('Payment modal dismissed');
             setIsLoading(false);
-          }
+          },
+          escape: false,
+          confirm_close: true
         }
       };
 
+      console.log('Opening Razorpay with options:', options);
       const rzp = new window.Razorpay(options);
+      
+      rzp.on('payment.failed', function (response: any) {
+        console.error('Payment failed:', response.error);
+        toast.error(`Payment failed: ${response.error.description}`);
+        setIsLoading(false);
+      });
+
       rzp.open();
       
     } catch (error) {
       console.error('Payment error:', error);
       toast.error("Failed to initiate payment. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
