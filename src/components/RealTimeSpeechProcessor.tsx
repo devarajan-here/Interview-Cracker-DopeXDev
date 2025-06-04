@@ -6,7 +6,6 @@ import { useAudioRecording } from '@/hooks/useAudioRecording';
 import RecordingControls from './RecordingControls';
 import RecordingStatus from './RecordingStatus';
 import TranscriptDisplay from './TranscriptDisplay';
-import ScreenShare from './ScreenShare';
 
 interface RealTimeSpeechProcessorProps {
   jobType: string;
@@ -101,20 +100,6 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
     toast.info('Recording stopped');
   };
 
-  const handleScreenCapture = (capturedText: string) => {
-    // Handle screen capture text
-    setCurrentTranscript(capturedText);
-  };
-
-  const handleAIAssistance = (suggestion: string) => {
-    // Handle AI assistance from screen share
-    onSpeechProcessed("", suggestion);
-    toast.info("AI Assistance", {
-      description: suggestion,
-      duration: 5000,
-    });
-  };
-
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
       <div className="space-y-4">
@@ -136,14 +121,6 @@ const RealTimeSpeechProcessor = ({ jobType, onSpeechProcessed, selectedMicId }: 
         />
 
         <TranscriptDisplay currentTranscript={currentTranscript} />
-      </div>
-
-      <div className="mt-6 pt-4 border-t">
-        <h3 className="text-lg font-semibold mb-4">Screen & Audio Capture</h3>
-        <ScreenShare 
-          onScreenCapture={handleScreenCapture} 
-          onAIAssist={handleAIAssistance}
-        />
       </div>
     </div>
   );
