@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, Settings, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import { generateAnswer, getApiKey, setApiKey } from "@/services/apiService";
-import SecureApiKeyForm from "@/components/SecureApiKeyForm";
+import { generateAnswer, getApiKey } from "@/services/apiService";
 import ScreenShare from "@/components/ScreenShare";
 import JobSelector from "@/components/JobSelector";
 import RealTimeSpeechProcessor from "@/components/RealTimeSpeechProcessor";
 import MicrophoneSelector from "@/components/MicrophoneSelector";
+import ChangePasswordForm from "@/components/ChangePasswordForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -28,7 +28,7 @@ const LiveInterview = () => {
   const [answer, setAnswer] = useState("");
   const [aiAssistance, setAIAssistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(!getApiKey());
+  const [showSettings, setShowSettings] = useState(false);
   const [selectedJob, setSelectedJob] = useState("");
   const [selectedMicId, setSelectedMicId] = useState("");
   const [speechHistory, setSpeechHistory] = useState<Array<{originalText: string, aiResponse: string, timestamp: Date}>>([]);
@@ -68,7 +68,7 @@ const LiveInterview = () => {
     }
 
     if (!getApiKey()) {
-      setShowSettings(true);
+      toast.error("API key is not configured. Please contact administrator.");
       return;
     }
 
@@ -114,13 +114,13 @@ const LiveInterview = () => {
               </SheetTrigger>
               <SheetContent>
                 <SheetHeader>
-                  <SheetTitle>API Settings</SheetTitle>
+                  <SheetTitle>Account Settings</SheetTitle>
                   <SheetDescription>
-                    Configure your OpenRouter API key securely.
+                    Manage your account settings and security.
                   </SheetDescription>
                 </SheetHeader>
                 <div className="py-4">
-                  <SecureApiKeyForm onSave={() => setShowSettings(false)} />
+                  <ChangePasswordForm onSave={() => setShowSettings(false)} />
                 </div>
               </SheetContent>
             </Sheet>

@@ -26,9 +26,16 @@ const JobSelector = ({ onJobChange, selectedJob }: JobSelectorProps) => {
 
   const handleJobSelect = (value: string) => {
     if (value === "Custom") {
-      onJobChange(customJob || "");
+      // Don't set the job yet, wait for user to enter custom title
+      onJobChange("");
     } else {
       onJobChange(value);
+    }
+  };
+
+  const handleCustomJobSet = () => {
+    if (customJob.trim()) {
+      onJobChange(customJob.trim());
     }
   };
 
@@ -36,7 +43,7 @@ const JobSelector = ({ onJobChange, selectedJob }: JobSelectorProps) => {
     <div className="space-y-4 p-4 border rounded-lg bg-white">
       <div className="space-y-2">
         <Label htmlFor="job-type">Interview Type</Label>
-        <Select value={selectedJob} onValueChange={handleJobSelect}>
+        <Select value={selectedJob === customJob ? "Custom" : selectedJob} onValueChange={handleJobSelect}>
           <SelectTrigger>
             <SelectValue placeholder="Select interview type" />
           </SelectTrigger>
@@ -50,7 +57,7 @@ const JobSelector = ({ onJobChange, selectedJob }: JobSelectorProps) => {
         </Select>
       </div>
       
-      {selectedJob === "Custom" && (
+      {(selectedJob === "Custom" || selectedJob === customJob) && (
         <div className="space-y-2">
           <Label htmlFor="custom-job">Custom Job Title</Label>
           <div className="flex gap-2">
@@ -60,7 +67,7 @@ const JobSelector = ({ onJobChange, selectedJob }: JobSelectorProps) => {
               onChange={(e) => setCustomJob(e.target.value)}
               placeholder="Enter job title (e.g., SOC Analyst)"
             />
-            <Button onClick={() => onJobChange(customJob)}>
+            <Button onClick={handleCustomJobSet} disabled={!customJob.trim()}>
               Set
             </Button>
           </div>
