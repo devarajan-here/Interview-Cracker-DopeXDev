@@ -5,14 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Shield, CheckCircle } from "lucide-react";
+import { Loader2, CreditCard, Shield, CheckCircle, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
 
 const Payment = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,23 +14,6 @@ const Payment = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const navigate = useNavigate();
-
-  // Using live Razorpay credentials
-  const RAZORPAY_KEY_ID = 'rzp_live_zwZIrpd1jClmwz';
-
-  useEffect(() => {
-    // Load Razorpay script
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, []);
 
   const validateForm = () => {
     if (!email || !name || !phone) {
@@ -65,107 +42,17 @@ const Payment = () => {
     setIsLoading(true);
 
     try {
-      // Create order via Supabase Edge Function
-      const orderResponse = await fetch(`https://xemlhjvuqxxyswyzyozy.supabase.co/functions/v1/create-payment-order`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlbWxoanZ1cXh4eXN3eXp5b3p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MjA2MDMsImV4cCI6MjA2NDA5NjYwM30.URA-BboCjVoSjRctpakFJ7CH1A_WwTF_Br7rRKUyKIs`
-        },
-        body: JSON.stringify({
-          amount: 7000, // ₹70 in paise
-          currency: 'INR',
-          customer_details: {
-            name,
-            email,
-            contact: phone
-          }
-        }),
-      });
-
-      const orderData = await orderResponse.json();
-      console.log('Order response:', orderData);
-
-      if (!orderData.success) {
-        throw new Error(orderData.error || 'Failed to create order');
-      }
-
-      // Configure Razorpay options
-      const options = {
-        key: RAZORPAY_KEY_ID,
-        amount: orderData.order.amount,
-        currency: orderData.order.currency,
-        name: 'AI Interview Assistant',
-        description: 'Monthly Subscription - ₹70',
-        order_id: orderData.order.id,
-        prefill: {
-          name,
-          email,
-          contact: phone,
-        },
-        theme: {
-          color: '#3B82F6',
-        },
-        handler: async (response: any) => {
-          // Verify payment via Supabase Edge Function
-          try {
-            console.log('Payment successful, verifying...', response);
-            
-            const verifyResponse = await fetch(`https://xemlhjvuqxxyswyzyozy.supabase.co/functions/v1/verify-payment`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlbWxoanZ1cXh4eXN3eXp5b3p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MjA2MDMsImV4cCI6MjA2NDA5NjYwM30.URA-BboCjVoSjRctpakFJ7CH1A_WwTF_Br7rRKUyKIs`
-              },
-              body: JSON.stringify({
-                payment_id: response.razorpay_payment_id,
-                order_id: response.razorpay_order_id,
-                signature: response.razorpay_signature,
-                customer_details: { name, email, phone }
-              }),
-            });
-
-            const verifyData = await verifyResponse.json();
-            console.log('Verification response:', verifyData);
-            
-            if (verifyData.success) {
-              toast.success("Payment successful! Redirecting to sign in...");
-              // Clear form and redirect to auth page
-              setEmail("");
-              setName("");
-              setPhone("");
-              setTimeout(() => {
-                navigate('/auth?payment_verified=true&email=' + encodeURIComponent(email));
-              }, 2000);
-            } else {
-              toast.error("Payment verification failed. Please contact support.");
-              console.error('Verification failed:', verifyData);
-            }
-          } catch (error) {
-            console.error('Payment verification error:', error);
-            toast.error("Payment verification failed. Please contact support.");
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            console.log('Payment modal dismissed');
-            setIsLoading(false);
-          },
-          escape: false,
-          confirm_close: true
-        }
-      };
-
-      console.log('Opening Razorpay with options:', options);
-      const rzp = new window.Razorpay(options);
+      console.log('Opening Razorpay payment link...');
       
-      rzp.on('payment.failed', function (response: any) {
-        console.error('Payment failed:', response.error);
-        toast.error(`Payment failed: ${response.error.description}`);
-        setIsLoading(false);
-      });
+      // Store customer details in localStorage for after payment verification
+      localStorage.setItem('payment_customer_details', JSON.stringify({
+        name,
+        email,
+        phone
+      }));
 
-      rzp.open();
+      // Open the Razorpay payment link in the same window
+      window.location.href = 'https://pages.razorpay.com/pl_Qbn1Dc0OBKEhgl/view';
       
     } catch (error) {
       console.error('Payment error:', error);
@@ -173,6 +60,25 @@ const Payment = () => {
       setIsLoading(false);
     }
   };
+
+  // Check if user is returning from payment
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentSuccess = urlParams.get('payment_success');
+    
+    if (paymentSuccess === 'true') {
+      // Payment was successful, redirect to auth
+      toast.success("Payment successful! Please sign in with your credentials.");
+      const customerDetails = localStorage.getItem('payment_customer_details');
+      if (customerDetails) {
+        const details = JSON.parse(customerDetails);
+        navigate('/auth?payment_verified=true&email=' + encodeURIComponent(details.email));
+        localStorage.removeItem('payment_customer_details');
+      } else {
+        navigate('/auth?payment_verified=true');
+      }
+    }
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -253,12 +159,13 @@ const Payment = () => {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Processing...
+                Redirecting...
               </>
             ) : (
               <>
                 <CreditCard className="mr-2 h-5 w-5" />
                 Pay ₹70 & Continue
+                <ExternalLink className="ml-2 h-4 w-4" />
               </>
             )}
           </Button>

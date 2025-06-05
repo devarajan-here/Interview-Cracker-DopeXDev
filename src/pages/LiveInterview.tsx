@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { generateAnswer, getApiKey } from "@/services/apiService";
 import ScreenShare from "@/components/ScreenShare";
 import JobSelector from "@/components/JobSelector";
-import RealTimeSpeechProcessor from "@/components/RealTimeSpeechProcessor";
 import MicrophoneSelector from "@/components/MicrophoneSelector";
 import ChangePasswordForm from "@/components/ChangePasswordForm";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,7 +30,6 @@ const LiveInterview = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [selectedJob, setSelectedJob] = useState("");
   const [selectedMicId, setSelectedMicId] = useState("");
-  const [speechHistory, setSpeechHistory] = useState<Array<{originalText: string, aiResponse: string, timestamp: Date}>>([]);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -48,17 +46,6 @@ const LiveInterview = () => {
       description: suggestion,
       duration: 5000,
     });
-  };
-
-  const handleSpeechProcessed = (originalText: string, aiResponse: string) => {
-    const newEntry = {
-      originalText,
-      aiResponse,
-      timestamp: new Date()
-    };
-    setSpeechHistory(prev => [newEntry, ...prev]);
-    setAIAssistance(aiResponse);
-    toast.success("Speech processed and AI response ready");
   };
 
   const handleSubmit = async () => {
@@ -147,12 +134,6 @@ const LiveInterview = () => {
               onMicrophoneSelect={setSelectedMicId}
             />
             
-            <RealTimeSpeechProcessor 
-              jobType={selectedJob}
-              selectedMicId={selectedMicId}
-              onSpeechProcessed={handleSpeechProcessed}
-            />
-            
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold mb-4">Screen & Audio Capture</h3>
               <div className="space-y-4">
@@ -187,7 +168,7 @@ const LiveInterview = () => {
             </div>
           </div>
 
-          {/* Right Column - Responses and History */}
+          {/* Right Column - Responses */}
           <div className="space-y-6">
             {aiAssistance && (
               <div className="bg-blue-50 p-4 rounded-lg">
@@ -217,23 +198,6 @@ const LiveInterview = () => {
                 )}
               </div>
             </div>
-
-            {speechHistory.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold mb-4">Speech Processing History</h3>
-                <div className="space-y-3 max-h-60 overflow-y-auto">
-                  {speechHistory.map((entry, index) => (
-                    <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
-                      <p className="text-sm text-gray-600 mb-1">
-                        {entry.timestamp.toLocaleTimeString()}
-                      </p>
-                      <p className="text-sm font-medium mb-2">Spoken: "{entry.originalText}"</p>
-                      <p className="text-sm text-blue-700">AI: {entry.aiResponse}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </main>
