@@ -53,20 +53,38 @@ const Payment = () => {
         timestamp: Date.now()
       }));
 
-      // Create the return URL for after payment
-      const returnUrl = `${window.location.origin}/auth?payment_success=true&email=${encodeURIComponent(email)}`;
-      
-      // Add return URL as a parameter to the Razorpay payment link
-      const paymentUrl = `https://pages.razorpay.com/pl_Qbn1Dc0OBKEhgl/view?redirect_url=${encodeURIComponent(returnUrl)}`;
-      
       toast.success("Redirecting to payment gateway...");
       
-      // Redirect to payment with return URL
-      window.location.href = paymentUrl;
+      // Open payment in new tab to avoid getting stuck
+      const paymentWindow = window.open('https://pages.razorpay.com/pl_Qbn1Dc0OBKEhgl/view', '_blank');
+      
+      // Start monitoring for payment completion
+      const checkPaymentInterval = setInterval(() => {
+        if (paymentWindow?.closed) {
+          clearInterval(checkPaymentInterval);
+          console.log('Payment window closed, redirecting to auth...');
+          
+          // Add a small delay to ensure any payment processing is complete
+          setTimeout(() => {
+            navigate(`/auth?payment_success=true&email=${encodeURIComponent(email)}`);
+          }, 1000);
+        }
+      }, 1000);
+
+      // Also set a backup redirect after 30 seconds
+      setTimeout(() => {
+        if (paymentWindow && !paymentWindow.closed) {
+          paymentWindow.close();
+        }
+        clearInterval(checkPaymentInterval);
+        console.log('Backup redirect triggered');
+        navigate(`/auth?payment_success=true&email=${encodeURIComponent(email)}`);
+      }, 30000);
       
     } catch (error) {
       console.error('Payment error:', error);
       toast.error("Failed to initiate payment. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -169,7 +187,7 @@ const Payment = () => {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Redirecting...
+                Opening Payment...
               </>
             ) : (
               <>
@@ -182,7 +200,7 @@ const Payment = () => {
 
           <p className="text-xs text-gray-500 text-center">
             By proceeding, you agree to our terms of service and privacy policy.
-            After payment, you'll be redirected back to create your account.
+            Complete payment and return here to create your account.
           </p>
         </CardContent>
       </Card>

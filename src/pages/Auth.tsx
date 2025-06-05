@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, CheckCircle, Info } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -230,27 +230,37 @@ const Auth = () => {
     }
   };
 
+  // Check if user has payment details stored (completed payment)
+  const hasStoredPayment = localStorage.getItem('payment_customer_details');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">AI Interview Assistant</CardTitle>
           <CardDescription>
-            {paymentVerified || localStorage.getItem('payment_customer_details') ? 
+            {paymentVerified || hasStoredPayment ? 
               "Complete your account setup" : 
               "Sign in to your account"
             }
           </CardDescription>
-          {(paymentVerified || localStorage.getItem('payment_customer_details')) && (
+          {(paymentVerified || hasStoredPayment) && (
             <div className="flex items-center justify-center mt-2 text-sm text-green-600">
               <CheckCircle className="h-4 w-4 mr-1" />
               Payment verified successfully!
             </div>
           )}
+          {/* Help message for users who completed payment */}
+          {hasStoredPayment && !paymentVerified && (
+            <div className="flex items-center justify-center mt-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
+              <Info className="h-4 w-4 mr-1" />
+              Completed payment? Create your account below to access the service.
+            </div>
+          )}
         </CardHeader>
 
         <CardContent>
-          <Tabs defaultValue={paymentVerified || localStorage.getItem('payment_customer_details') ? "signup" : "signin"} className="space-y-4">
+          <Tabs defaultValue={paymentVerified || hasStoredPayment ? "signup" : "signin"} className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -308,7 +318,7 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    disabled={paymentVerified || !!localStorage.getItem('payment_customer_details')}
+                    disabled={paymentVerified || !!hasStoredPayment}
                   />
                 </div>
 
@@ -353,7 +363,7 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
 
-          {!paymentVerified && !localStorage.getItem('payment_customer_details') && (
+          {!paymentVerified && !hasStoredPayment && (
             <div className="mt-4 text-center">
               <p className="text-sm text-gray-600">
                 Don't have a subscription?{" "}
