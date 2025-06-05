@@ -42,7 +42,7 @@ const Payment = () => {
     setIsLoading(true);
 
     try {
-      console.log('Opening Razorpay payment link...');
+      console.log('Initiating payment process...');
       
       // Store customer details in localStorage for after payment verification
       localStorage.setItem('payment_customer_details', JSON.stringify({
@@ -53,8 +53,16 @@ const Payment = () => {
         timestamp: Date.now()
       }));
 
-      // Open the Razorpay payment link in the same window
-      window.location.href = 'https://pages.razorpay.com/pl_Qbn1Dc0OBKEhgl/view';
+      // Create the return URL for after payment
+      const returnUrl = `${window.location.origin}/auth?payment_success=true&email=${encodeURIComponent(email)}`;
+      
+      // Add return URL as a parameter to the Razorpay payment link
+      const paymentUrl = `https://pages.razorpay.com/pl_Qbn1Dc0OBKEhgl/view?redirect_url=${encodeURIComponent(returnUrl)}`;
+      
+      toast.success("Redirecting to payment gateway...");
+      
+      // Redirect to payment with return URL
+      window.location.href = paymentUrl;
       
     } catch (error) {
       console.error('Payment error:', error);
@@ -63,24 +71,20 @@ const Payment = () => {
     }
   };
 
-  // Check if user is returning from payment or has payment details stored
+  // Check if user is returning from payment
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
     const paymentId = urlParams.get('payment_id');
     
-    // Check if payment was successful or if we have stored payment details
-    const storedDetails = localStorage.getItem('payment_customer_details');
-    
-    if (paymentSuccess === 'true' || paymentId || storedDetails) {
-      console.log('Payment verification detected, redirecting to auth...');
+    if (paymentSuccess === 'true' || paymentId) {
+      console.log('Payment success detected, redirecting to auth...');
+      const storedDetails = localStorage.getItem('payment_customer_details');
       
       if (storedDetails) {
         const details = JSON.parse(storedDetails);
-        // Redirect to auth page with payment verified flag and email
         navigate(`/auth?payment_verified=true&email=${encodeURIComponent(details.email)}`);
       } else {
-        // Redirect to auth page with just payment verified flag
         navigate('/auth?payment_verified=true');
       }
     }
@@ -178,7 +182,7 @@ const Payment = () => {
 
           <p className="text-xs text-gray-500 text-center">
             By proceeding, you agree to our terms of service and privacy policy.
-            After payment, you'll be redirected to create your account.
+            After payment, you'll be redirected back to create your account.
           </p>
         </CardContent>
       </Card>

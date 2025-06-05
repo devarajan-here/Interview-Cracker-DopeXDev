@@ -19,7 +19,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const paymentVerified = searchParams.get('payment_verified') === 'true';
+  const paymentVerified = searchParams.get('payment_verified') === 'true' || searchParams.get('payment_success') === 'true';
   const prefilledEmail = searchParams.get('email') || '';
 
   // Admin credentials
@@ -134,7 +134,7 @@ const Auth = () => {
         // Clear stored payment details after successful account creation
         localStorage.removeItem('payment_customer_details');
 
-        toast.success(isAdmin ? "Admin account created successfully!" : "Account created successfully! Welcome!");
+        toast.success(isAdmin ? "Admin account created successfully!" : "Account created successfully! You now have access to the AI Interview Assistant.");
         navigate('/live-interview');
       }
     } catch (error: any) {
@@ -169,7 +169,7 @@ const Auth = () => {
             // Clear stored payment details
             localStorage.removeItem('payment_customer_details');
 
-            toast.success("Welcome back! Payment verified successfully.");
+            toast.success("Welcome back! Payment verified successfully. You now have access to the AI Interview Assistant.");
             navigate('/live-interview');
           }
         } catch (signInError: any) {
@@ -219,7 +219,7 @@ const Auth = () => {
           return;
         }
 
-        toast.success("Welcome back!");
+        toast.success("Welcome back! You now have access to the AI Interview Assistant.");
         navigate('/live-interview');
       }
     } catch (error: any) {
@@ -347,7 +347,7 @@ const Auth = () => {
 
                 <Button onClick={handleSignUp} disabled={isLoading} className="w-full">
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Create Account
+                  Create Account & Access Service
                 </Button>
               </div>
             </TabsContent>
