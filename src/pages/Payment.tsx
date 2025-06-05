@@ -48,7 +48,9 @@ const Payment = () => {
       localStorage.setItem('payment_customer_details', JSON.stringify({
         name,
         email,
-        phone
+        phone,
+        payment_initiated: true,
+        timestamp: Date.now()
       }));
 
       // Open the Razorpay payment link in the same window
@@ -61,20 +63,24 @@ const Payment = () => {
     }
   };
 
-  // Check if user is returning from payment
+  // Check if user is returning from payment or has payment details stored
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
+    const paymentId = urlParams.get('payment_id');
     
-    if (paymentSuccess === 'true') {
-      // Payment was successful, redirect to auth
-      toast.success("Payment successful! Please sign in with your credentials.");
-      const customerDetails = localStorage.getItem('payment_customer_details');
-      if (customerDetails) {
-        const details = JSON.parse(customerDetails);
-        navigate('/auth?payment_verified=true&email=' + encodeURIComponent(details.email));
-        localStorage.removeItem('payment_customer_details');
+    // Check if payment was successful or if we have stored payment details
+    const storedDetails = localStorage.getItem('payment_customer_details');
+    
+    if (paymentSuccess === 'true' || paymentId || storedDetails) {
+      console.log('Payment verification detected, redirecting to auth...');
+      
+      if (storedDetails) {
+        const details = JSON.parse(storedDetails);
+        // Redirect to auth page with payment verified flag and email
+        navigate(`/auth?payment_verified=true&email=${encodeURIComponent(details.email)}`);
       } else {
+        // Redirect to auth page with just payment verified flag
         navigate('/auth?payment_verified=true');
       }
     }
@@ -172,7 +178,7 @@ const Payment = () => {
 
           <p className="text-xs text-gray-500 text-center">
             By proceeding, you agree to our terms of service and privacy policy.
-            You'll be redirected to create your account after successful payment.
+            After payment, you'll be redirected to create your account.
           </p>
         </CardContent>
       </Card>

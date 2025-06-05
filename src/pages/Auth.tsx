@@ -24,11 +24,17 @@ const Auth = () => {
 
   // Admin credentials
   const ADMIN_EMAIL = 'draxmoon01@gmail.com';
-  const ADMIN_PASSWORD = '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';
 
   useEffect(() => {
     if (prefilledEmail) {
       setEmail(prefilledEmail);
+    }
+
+    // Check stored payment details
+    const storedDetails = localStorage.getItem('payment_customer_details');
+    if (storedDetails && !prefilledEmail) {
+      const details = JSON.parse(storedDetails);
+      setEmail(details.email);
     }
 
     // Check if user is already logged in
@@ -86,8 +92,11 @@ const Auth = () => {
   const handleSignUp = async () => {
     if (!validateForm(true)) return;
 
-    // Allow admin to sign up without payment verification
-    if (email !== ADMIN_EMAIL && !paymentVerified) {
+    // Check for payment verification or admin status
+    const storedDetails = localStorage.getItem('payment_customer_details');
+    const isAdmin = email === ADMIN_EMAIL;
+    
+    if (!isAdmin && !paymentVerified && !storedDetails) {
       toast.error("Please complete payment first");
       navigate('/payment');
       return;
@@ -109,8 +118,7 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Update profile to mark payment as verified (or admin status)
-        const isAdmin = email === ADMIN_EMAIL;
+        // Update profile to mark payment as verified
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
@@ -123,12 +131,53 @@ const Auth = () => {
           console.error('Profile update error:', profileError);
         }
 
+        // Clear stored payment details after successful account creation
+        localStorage.removeItem('payment_customer_details');
+
         toast.success(isAdmin ? "Admin account created successfully!" : "Account created successfully! Welcome!");
         navigate('/live-interview');
       }
     } catch (error: any) {
       console.error('Sign up error:', error);
-      toast.error(error.message || "Failed to create account");
+      
+      // If user already exists, try to sign them in
+      if (error.message?.includes('already registered')) {
+        toast.info("Email already registered. Trying to sign you in...");
+        
+        try {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (signInError) throw signInError;
+
+          if (signInData.user) {
+            // Update profile to mark payment as verified for existing users
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({
+                payment_verified: true,
+                subscription_status: 'active'
+              })
+              .eq('id', signInData.user.id);
+
+            if (profileError) {
+              console.error('Profile update error:', profileError);
+            }
+
+            // Clear stored payment details
+            localStorage.removeItem('payment_customer_details');
+
+            toast.success("Welcome back! Payment verified successfully.");
+            navigate('/live-interview');
+          }
+        } catch (signInError: any) {
+          toast.error("Please try signing in with your existing password");
+        }
+      } else {
+        toast.error(error.message || "Failed to create account");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -187,9 +236,12 @@ const Auth = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">AI Interview Assistant</CardTitle>
           <CardDescription>
-            {paymentVerified ? "Complete your account setup" : "Sign in to your account"}
+            {paymentVerified || localStorage.getItem('payment_customer_details') ? 
+              "Complete your account setup" : 
+              "Sign in to your account"
+            }
           </CardDescription>
-          {paymentVerified && (
+          {(paymentVerified || localStorage.getItem('payment_customer_details')) && (
             <div className="flex items-center justify-center mt-2 text-sm text-green-600">
               <CheckCircle className="h-4 w-4 mr-1" />
               Payment verified successfully!
@@ -198,7 +250,7 @@ const Auth = () => {
         </CardHeader>
 
         <CardContent>
-          <Tabs defaultValue={paymentVerified ? "signup" : "signin"} className="space-y-4">
+          <Tabs defaultValue={paymentVerified || localStorage.getItem('payment_customer_details') ? "signup" : "signin"} className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -256,7 +308,7 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    disabled={paymentVerified}
+                    disabled={paymentVerified || !!localStorage.getItem('payment_customer_details')}
                   />
                 </div>
 
@@ -301,7 +353,7 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
 
-          {!paymentVerified && (
+          {!paymentVerified && !localStorage.getItem('payment_customer_details') && (
             <div className="mt-4 text-center">
               <p className="text-sm text-gray-600">
                 Don't have a subscription?{" "}
