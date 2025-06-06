@@ -19,8 +19,9 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const paymentVerified = searchParams.get('payment_verified') === 'true' || searchParams.get('payment_success') === 'true';
+  const paymentVerified = searchParams.get('payment_verified') === 'true';
   const prefilledEmail = searchParams.get('email') || '';
+  const isEmailConfirmed = searchParams.get('confirmed') === 'true';
 
   // Admin credentials
   const ADMIN_EMAIL = 'draxmoon01@gmail.com';
@@ -30,12 +31,11 @@ const Auth = () => {
       setEmail(prefilledEmail);
     }
 
-    // Check stored payment details - but only if payment was actually completed
+    // Check stored payment details
     const storedDetails = localStorage.getItem('payment_customer_details');
     if (storedDetails && !prefilledEmail) {
       const details = JSON.parse(storedDetails);
-      // Only use stored details if payment was actually completed
-      if (details.payment_completed) {
+      if (details.payment_completed && details.payment_id) {
         setEmail(details.email);
       }
     }
@@ -95,12 +95,12 @@ const Auth = () => {
   const handleSignUp = async () => {
     if (!validateForm(true)) return;
 
-    // Check for payment verification or admin status
+    // Check for payment verification
     const storedDetails = localStorage.getItem('payment_customer_details');
     const isAdmin = email === ADMIN_EMAIL;
     
-    if (!isAdmin && !paymentVerified && (!storedDetails || !JSON.parse(storedDetails).payment_completed)) {
-      toast.error("Please complete payment first");
+    if (!isAdmin && !paymentVerified && (!storedDetails || !JSON.parse(storedDetails).payment_completed || !JSON.parse(storedDetails).payment_id)) {
+      toast.error("Please complete payment verification first");
       navigate('/payment');
       return;
     }
@@ -110,12 +110,12 @@ const Auth = () => {
     try {
       console.log('Creating account with payment verification...');
       
-      // Create account with email confirmation - redirect to auth page for sign in
+      // Create account with email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
+          emailRedirectTo: `${window.location.origin}/auth?confirmed=true&email=${encodeURIComponent(email)}`,
           data: {
             email: email,
             payment_verified: true
@@ -144,7 +144,7 @@ const Auth = () => {
         localStorage.removeItem('payment_customer_details');
 
         if (data.user.email_confirmed_at) {
-          // User email is already confirmed, redirect to live interview
+          // User email is already confirmed
           toast.success("Account created successfully! You now have access to the AI Interview Assistant.");
           navigate('/live-interview');
         } else {
@@ -156,41 +156,8 @@ const Auth = () => {
     } catch (error: any) {
       console.error('Sign up error:', error);
       
-      // If user already exists, try to sign them in
       if (error.message?.includes('already registered')) {
-        toast.info("Email already registered. Trying to sign you in...");
-        
-        try {
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (signInError) throw signInError;
-
-          if (signInData.user) {
-            // Update profile to mark payment as verified for existing users
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .update({
-                payment_verified: true,
-                subscription_status: 'active'
-              })
-              .eq('id', signInData.user.id);
-
-            if (profileError) {
-              console.error('Profile update error:', profileError);
-            }
-
-            // Clear stored payment details
-            localStorage.removeItem('payment_customer_details');
-
-            toast.success("Welcome back! Payment verified successfully. You now have access to the AI Interview Assistant.");
-            navigate('/live-interview');
-          }
-        } catch (signInError: any) {
-          toast.error("Please try signing in with your existing password");
-        }
+        toast.info("Email already registered. Please sign in with your existing password.");
       } else {
         toast.error(error.message || "Failed to create account");
       }
@@ -236,7 +203,6 @@ const Auth = () => {
           toast.error("Please confirm your email first. Check your inbox for the confirmation link.");
           await supabase.auth.signOut();
         } else {
-          // Only redirect to payment if they haven't verified payment yet
           toast.error("Payment verification required. Please complete payment first.");
           await supabase.auth.signOut();
           navigate('/payment');
@@ -250,12 +216,9 @@ const Auth = () => {
     }
   };
 
-  // Check if user has payment details stored (completed payment)
+  // Check if user has payment details stored with payment ID
   const hasStoredPayment = localStorage.getItem('payment_customer_details');
-  const hasCompletedPayment = hasStoredPayment && JSON.parse(hasStoredPayment).payment_completed;
-
-  // Check if user is returning from email confirmation
-  const isEmailConfirmed = searchParams.get('confirmed') === 'true';
+  const hasCompletedPayment = hasStoredPayment && JSON.parse(hasStoredPayment).payment_completed && JSON.parse(hasStoredPayment).payment_id;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -282,11 +245,10 @@ const Auth = () => {
               Email confirmed! Please sign in below.
             </div>
           )}
-          {/* Help message for users who completed payment */}
           {hasCompletedPayment && !paymentVerified && (
             <div className="flex items-center justify-center mt-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
               <Info className="h-4 w-4 mr-1" />
-              Completed payment? Create your account below to access the service.
+              Payment verified! Create your account below to access the service.
             </div>
           )}
         </CardHeader>

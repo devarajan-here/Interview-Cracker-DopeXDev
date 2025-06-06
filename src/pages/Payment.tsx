@@ -13,6 +13,8 @@ const Payment = () => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [paymentId, setPaymentId] = useState("");
+  const [showPaymentVerification, setShowPaymentVerification] = useState(false);
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -44,8 +46,13 @@ const Payment = () => {
     try {
       console.log('Initiating payment process...');
       
-      // Clear any existing payment details first
-      localStorage.removeItem('payment_customer_details');
+      // Store customer details for later use
+      localStorage.setItem('payment_customer_details', JSON.stringify({
+        name,
+        email,
+        phone,
+        timestamp: Date.now()
+      }));
 
       toast.success("Redirecting to payment gateway...");
       
@@ -56,51 +63,19 @@ const Payment = () => {
       const checkPaymentInterval = setInterval(() => {
         if (paymentWindow?.closed) {
           clearInterval(checkPaymentInterval);
-          console.log('Payment window closed - checking if payment was completed...');
-          
-          // Only store payment details and redirect if user confirms payment was successful
-          const userConfirmed = confirm("Did you complete the payment successfully? Click OK if yes, Cancel if no.");
-          
-          if (userConfirmed) {
-            // Store customer details only after user confirms payment was completed
-            localStorage.setItem('payment_customer_details', JSON.stringify({
-              name,
-              email,
-              phone,
-              payment_completed: true,
-              timestamp: Date.now()
-            }));
-            
-            console.log('Payment confirmed by user, redirecting to auth...');
-            navigate(`/auth?payment_verified=true&email=${encodeURIComponent(email)}`);
-          } else {
-            console.log('Payment not completed, staying on payment page');
-            toast.info("Payment not completed. Please try again when ready.");
-          }
+          console.log('Payment window closed - showing payment verification form...');
+          setShowPaymentVerification(true);
         }
       }, 1000);
 
-      // Backup timeout - don't auto-redirect, just prompt user
+      // Backup timeout
       setTimeout(() => {
         if (paymentWindow && !paymentWindow.closed) {
           paymentWindow.close();
         }
         clearInterval(checkPaymentInterval);
-        console.log('Payment timeout - prompting user');
-        
-        const userConfirmed = confirm("Payment window timed out. Did you complete the payment successfully? Click OK if yes, Cancel if no.");
-        
-        if (userConfirmed) {
-          localStorage.setItem('payment_customer_details', JSON.stringify({
-            name,
-            email,
-            phone,
-            payment_completed: true,
-            timestamp: Date.now()
-          }));
-          
-          navigate(`/auth?payment_verified=true&email=${encodeURIComponent(email)}`);
-        }
+        console.log('Payment timeout - showing payment verification form...');
+        setShowPaymentVerification(true);
       }, 30000);
       
     } catch (error) {
@@ -111,25 +86,97 @@ const Payment = () => {
     }
   };
 
-  // Check if user is returning from payment - only redirect if they actually have verified payment
+  const handlePaymentVerification = () => {
+    if (!paymentId.trim()) {
+      toast.error("Please enter your payment ID");
+      return;
+    }
+
+    // Store payment verification details
+    const customerDetails = JSON.parse(localStorage.getItem('payment_customer_details') || '{}');
+    localStorage.setItem('payment_customer_details', JSON.stringify({
+      ...customerDetails,
+      payment_id: paymentId,
+      payment_completed: true,
+      timestamp: Date.now()
+    }));
+
+    console.log('Payment ID verified, redirecting to sign-up...');
+    toast.success("Payment verified! Redirecting to account creation...");
+    navigate(`/auth?payment_verified=true&email=${encodeURIComponent(email)}`);
+  };
+
+  // Check if user is returning from payment
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
-    const paymentId = urlParams.get('payment_id');
+    const paymentIdFromUrl = urlParams.get('payment_id');
     
-    if (paymentSuccess === 'true' || paymentId) {
-      console.log('Payment success detected, checking stored details...');
-      const storedDetails = localStorage.getItem('payment_customer_details');
-      
-      if (storedDetails) {
-        const details = JSON.parse(storedDetails);
-        // Only redirect if payment was actually completed
-        if (details.payment_completed) {
-          navigate(`/auth?payment_verified=true&email=${encodeURIComponent(details.email)}`);
-        }
+    if (paymentSuccess === 'true' || paymentIdFromUrl) {
+      console.log('Payment success detected from URL');
+      setShowPaymentVerification(true);
+      if (paymentIdFromUrl) {
+        setPaymentId(paymentIdFromUrl);
       }
     }
-  }, [navigate]);
+  }, []);
+
+  if (showPaymentVerification) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-gray-900">
+              Verify Payment
+            </CardTitle>
+            <CardDescription>
+              Please enter your payment ID to complete verification
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+              <p className="text-sm text-gray-600">
+                Thank you for your payment! Please enter your payment ID from the payment confirmation to proceed.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="payment-id">Payment ID *</Label>
+              <Input
+                id="payment-id"
+                type="text"
+                value={paymentId}
+                onChange={(e) => setPaymentId(e.target.value)}
+                placeholder="Enter payment ID (e.g., pay_xxxxx)"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                You can find this in your payment confirmation email or SMS
+              </p>
+            </div>
+
+            <Button 
+              onClick={handlePaymentVerification}
+              className="w-full"
+              size="lg"
+            >
+              Verify Payment & Continue to Sign Up
+            </Button>
+
+            <Button 
+              variant="outline"
+              onClick={() => setShowPaymentVerification(false)}
+              className="w-full"
+            >
+              Back to Payment
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -223,7 +270,7 @@ const Payment = () => {
 
           <p className="text-xs text-gray-500 text-center">
             By proceeding, you agree to our terms of service and privacy policy.
-            After completing payment, confirm the payment completion to proceed to account creation.
+            After completing payment, you'll need to verify with your payment ID.
           </p>
         </CardContent>
       </Card>
