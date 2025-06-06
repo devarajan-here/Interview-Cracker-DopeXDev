@@ -30,11 +30,14 @@ const Auth = () => {
       setEmail(prefilledEmail);
     }
 
-    // Check stored payment details
+    // Check stored payment details - but only if payment was actually completed
     const storedDetails = localStorage.getItem('payment_customer_details');
     if (storedDetails && !prefilledEmail) {
       const details = JSON.parse(storedDetails);
-      setEmail(details.email);
+      // Only use stored details if payment was actually completed
+      if (details.payment_completed) {
+        setEmail(details.email);
+      }
     }
 
     // Check if user is already logged in
@@ -96,7 +99,7 @@ const Auth = () => {
     const storedDetails = localStorage.getItem('payment_customer_details');
     const isAdmin = email === ADMIN_EMAIL;
     
-    if (!isAdmin && !paymentVerified && !storedDetails) {
+    if (!isAdmin && !paymentVerified && (!storedDetails || !JSON.parse(storedDetails).payment_completed)) {
       toast.error("Please complete payment first");
       navigate('/payment');
       return;
@@ -107,12 +110,12 @@ const Auth = () => {
     try {
       console.log('Creating account with payment verification...');
       
-      // Create account with email confirmation
+      // Create account with email confirmation - redirect to auth page for sign in
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
+          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
           data: {
             email: email,
             payment_verified: true
@@ -146,8 +149,8 @@ const Auth = () => {
           navigate('/live-interview');
         } else {
           // Email confirmation required
-          toast.success("Account created! Please check your email and click the confirmation link to complete setup.");
-          toast.info("After confirming your email, you can sign in below to access the service.");
+          toast.success("Account created! Please check your email and click the confirmation link.");
+          toast.info("After confirming your email, you'll be redirected back here to sign in.");
         }
       }
     } catch (error: any) {
@@ -218,17 +221,20 @@ const Auth = () => {
           return;
         }
 
-        // For regular users, check payment status but don't block if they have verified payment from signup
+        // For regular users, check payment status
         const { data: profile } = await supabase
           .from('profiles')
           .select('payment_verified, subscription_status')
           .eq('id', data.user.id)
           .single();
 
-        // If user completed payment and signed up, they should have access
-        if (profile && profile.payment_verified && profile.subscription_status === 'active') {
+        // Check if user's email is confirmed and they have verified payment
+        if (data.user.email_confirmed_at && profile && profile.payment_verified && profile.subscription_status === 'active') {
           toast.success("Welcome back! You now have access to the AI Interview Assistant.");
           navigate('/live-interview');
+        } else if (!data.user.email_confirmed_at) {
+          toast.error("Please confirm your email first. Check your inbox for the confirmation link.");
+          await supabase.auth.signOut();
         } else {
           // Only redirect to payment if they haven't verified payment yet
           toast.error("Payment verification required. Please complete payment first.");
@@ -246,6 +252,10 @@ const Auth = () => {
 
   // Check if user has payment details stored (completed payment)
   const hasStoredPayment = localStorage.getItem('payment_customer_details');
+  const hasCompletedPayment = hasStoredPayment && JSON.parse(hasStoredPayment).payment_completed;
+
+  // Check if user is returning from email confirmation
+  const isEmailConfirmed = searchParams.get('confirmed') === 'true';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -253,19 +263,27 @@ const Auth = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">AI Interview Assistant</CardTitle>
           <CardDescription>
-            {paymentVerified || hasStoredPayment ? 
+            {paymentVerified || hasCompletedPayment ? 
               "Complete your account setup" : 
+              isEmailConfirmed ?
+              "Welcome back! Please sign in" :
               "Sign in to your account"
             }
           </CardDescription>
-          {(paymentVerified || hasStoredPayment) && (
+          {(paymentVerified || hasCompletedPayment) && (
             <div className="flex items-center justify-center mt-2 text-sm text-green-600">
               <CheckCircle className="h-4 w-4 mr-1" />
               Payment verified successfully!
             </div>
           )}
+          {isEmailConfirmed && (
+            <div className="flex items-center justify-center mt-2 text-sm text-green-600">
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Email confirmed! Please sign in below.
+            </div>
+          )}
           {/* Help message for users who completed payment */}
-          {hasStoredPayment && !paymentVerified && (
+          {hasCompletedPayment && !paymentVerified && (
             <div className="flex items-center justify-center mt-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
               <Info className="h-4 w-4 mr-1" />
               Completed payment? Create your account below to access the service.
@@ -274,7 +292,7 @@ const Auth = () => {
         </CardHeader>
 
         <CardContent>
-          <Tabs defaultValue={paymentVerified || hasStoredPayment ? "signup" : "signin"} className="space-y-4">
+          <Tabs defaultValue={paymentVerified || hasCompletedPayment ? "signup" : (isEmailConfirmed ? "signin" : "signin")} className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -332,7 +350,7 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    disabled={paymentVerified || !!hasStoredPayment}
+                    disabled={paymentVerified || !!hasCompletedPayment}
                   />
                 </div>
 
@@ -377,7 +395,7 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
 
-          {!paymentVerified && !hasStoredPayment && (
+          {!paymentVerified && !hasCompletedPayment && !isEmailConfirmed && (
             <div className="mt-4 text-center">
               <p className="text-sm text-gray-600">
                 Don't have a subscription?{" "}

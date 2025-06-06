@@ -44,41 +44,63 @@ const Payment = () => {
     try {
       console.log('Initiating payment process...');
       
-      // Store customer details in localStorage for after payment verification
-      localStorage.setItem('payment_customer_details', JSON.stringify({
-        name,
-        email,
-        phone,
-        payment_initiated: true,
-        timestamp: Date.now()
-      }));
+      // Clear any existing payment details first
+      localStorage.removeItem('payment_customer_details');
 
       toast.success("Redirecting to payment gateway...");
       
-      // Open payment in new tab to avoid getting stuck
+      // Open payment in new tab
       const paymentWindow = window.open('https://pages.razorpay.com/pl_Qbn1Dc0OBKEhgl/view', '_blank');
       
-      // Start monitoring for payment completion
+      // Monitor for payment completion
       const checkPaymentInterval = setInterval(() => {
         if (paymentWindow?.closed) {
           clearInterval(checkPaymentInterval);
-          console.log('Payment window closed, redirecting to auth...');
+          console.log('Payment window closed - checking if payment was completed...');
           
-          // Add a small delay to ensure any payment processing is complete
-          setTimeout(() => {
-            navigate(`/auth?payment_success=true&email=${encodeURIComponent(email)}`);
-          }, 1000);
+          // Only store payment details and redirect if user confirms payment was successful
+          const userConfirmed = confirm("Did you complete the payment successfully? Click OK if yes, Cancel if no.");
+          
+          if (userConfirmed) {
+            // Store customer details only after user confirms payment was completed
+            localStorage.setItem('payment_customer_details', JSON.stringify({
+              name,
+              email,
+              phone,
+              payment_completed: true,
+              timestamp: Date.now()
+            }));
+            
+            console.log('Payment confirmed by user, redirecting to auth...');
+            navigate(`/auth?payment_verified=true&email=${encodeURIComponent(email)}`);
+          } else {
+            console.log('Payment not completed, staying on payment page');
+            toast.info("Payment not completed. Please try again when ready.");
+          }
         }
       }, 1000);
 
-      // Also set a backup redirect after 30 seconds
+      // Backup timeout - don't auto-redirect, just prompt user
       setTimeout(() => {
         if (paymentWindow && !paymentWindow.closed) {
           paymentWindow.close();
         }
         clearInterval(checkPaymentInterval);
-        console.log('Backup redirect triggered');
-        navigate(`/auth?payment_success=true&email=${encodeURIComponent(email)}`);
+        console.log('Payment timeout - prompting user');
+        
+        const userConfirmed = confirm("Payment window timed out. Did you complete the payment successfully? Click OK if yes, Cancel if no.");
+        
+        if (userConfirmed) {
+          localStorage.setItem('payment_customer_details', JSON.stringify({
+            name,
+            email,
+            phone,
+            payment_completed: true,
+            timestamp: Date.now()
+          }));
+          
+          navigate(`/auth?payment_verified=true&email=${encodeURIComponent(email)}`);
+        }
       }, 30000);
       
     } catch (error) {
@@ -89,21 +111,22 @@ const Payment = () => {
     }
   };
 
-  // Check if user is returning from payment
+  // Check if user is returning from payment - only redirect if they actually have verified payment
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
     const paymentId = urlParams.get('payment_id');
     
     if (paymentSuccess === 'true' || paymentId) {
-      console.log('Payment success detected, redirecting to auth...');
+      console.log('Payment success detected, checking stored details...');
       const storedDetails = localStorage.getItem('payment_customer_details');
       
       if (storedDetails) {
         const details = JSON.parse(storedDetails);
-        navigate(`/auth?payment_verified=true&email=${encodeURIComponent(details.email)}`);
-      } else {
-        navigate('/auth?payment_verified=true');
+        // Only redirect if payment was actually completed
+        if (details.payment_completed) {
+          navigate(`/auth?payment_verified=true&email=${encodeURIComponent(details.email)}`);
+        }
       }
     }
   }, [navigate]);
@@ -200,7 +223,7 @@ const Payment = () => {
 
           <p className="text-xs text-gray-500 text-center">
             By proceeding, you agree to our terms of service and privacy policy.
-            Complete payment and return here to create your account.
+            After completing payment, confirm the payment completion to proceed to account creation.
           </p>
         </CardContent>
       </Card>
