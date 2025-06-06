@@ -110,7 +110,7 @@ const Auth = () => {
     try {
       console.log('Creating account with payment verification...');
       
-      // Create account with email confirmation - Updated redirect URL
+      // Create account with email confirmation - Use the actual preview URL
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -123,9 +123,14 @@ const Auth = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign up error:', error);
+        throw error;
+      }
 
       if (data.user) {
+        console.log('User created successfully:', data.user);
+        
         // Update profile to mark payment as verified immediately
         console.log('Updating user profile with payment verification...');
         const { error: profileError } = await supabase
@@ -138,6 +143,8 @@ const Auth = () => {
 
         if (profileError) {
           console.error('Profile update error:', profileError);
+        } else {
+          console.log('Profile updated successfully');
         }
 
         // Clear stored payment details after successful account creation
@@ -150,7 +157,10 @@ const Auth = () => {
         } else {
           // Email confirmation required
           toast.success("Account created! Please check your email and click the confirmation link.");
-          toast.info("After confirming your email, you'll be redirected back here to sign in.");
+          toast.info("After confirming your email, you'll be redirected back here to sign in.", {
+            duration: 6000
+          });
+          console.log('Confirmation email should be sent to:', email);
         }
       }
     } catch (error: any) {
@@ -158,6 +168,8 @@ const Auth = () => {
       
       if (error.message?.includes('already registered')) {
         toast.info("Email already registered. Please sign in with your existing password.");
+      } else if (error.message?.includes('Email rate limit exceeded')) {
+        toast.error("Too many emails sent. Please wait a few minutes before trying again.");
       } else {
         toast.error(error.message || "Failed to create account");
       }
@@ -239,7 +251,11 @@ const Auth = () => {
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
-      toast.error(error.message || "Failed to sign in");
+      if (error.message?.includes('Invalid login credentials')) {
+        toast.error("Invalid email or password. Please check your credentials.");
+      } else {
+        toast.error(error.message || "Failed to sign in");
+      }
     } finally {
       setIsLoading(false);
     }
