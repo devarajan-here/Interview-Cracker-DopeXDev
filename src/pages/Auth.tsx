@@ -110,12 +110,12 @@ const Auth = () => {
     try {
       console.log('Creating account with payment verification...');
       
-      // Create account with email confirmation
+      // Create account with email confirmation - Updated redirect URL
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth?confirmed=true&email=${encodeURIComponent(email)}`,
+          emailRedirectTo: `https://preview--ai-powered-builder.lovable.app/auth?confirmed=true&email=${encodeURIComponent(email)}`,
           data: {
             email: email,
             payment_verified: true
@@ -180,6 +180,8 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
+        console.log('User signed in:', data.user.email);
+        
         // Check if user is admin - bypass payment verification
         if (data.user.email === ADMIN_EMAIL) {
           console.log('Admin login successful');
@@ -188,21 +190,48 @@ const Auth = () => {
           return;
         }
 
+        // Check if email is confirmed
+        if (!data.user.email_confirmed_at) {
+          toast.error("Please confirm your email first. Check your inbox for the confirmation link.");
+          await supabase.auth.signOut();
+          return;
+        }
+
         // For regular users, check payment status
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('payment_verified, subscription_status')
           .eq('id', data.user.id)
           .single();
 
-        // Check if user's email is confirmed and they have verified payment
-        if (data.user.email_confirmed_at && profile && profile.payment_verified && profile.subscription_status === 'active') {
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          // If profile doesn't exist, create it with payment verification needed
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email,
+              payment_verified: false,
+              subscription_status: 'inactive'
+            });
+          
+          if (insertError) {
+            console.error('Profile creation error:', insertError);
+          }
+          
+          toast.error("Payment verification required. Please complete payment first.");
+          await supabase.auth.signOut();
+          navigate('/payment');
+          return;
+        }
+
+        // Check payment verification and subscription status
+        if (profile.payment_verified && profile.subscription_status === 'active') {
           toast.success("Welcome back! You now have access to the AI Interview Assistant.");
           navigate('/live-interview');
-        } else if (!data.user.email_confirmed_at) {
-          toast.error("Please confirm your email first. Check your inbox for the confirmation link.");
-          await supabase.auth.signOut();
         } else {
+          console.log('Payment not verified or subscription inactive:', profile);
           toast.error("Payment verification required. Please complete payment first.");
           await supabase.auth.signOut();
           navigate('/payment');

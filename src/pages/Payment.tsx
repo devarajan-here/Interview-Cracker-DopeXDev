@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +67,7 @@ const Payment = () => {
         }
       }, 1000);
 
-      // Backup timeout
+      // Backup timeout - changed from 30 seconds to 1 minute
       setTimeout(() => {
         if (paymentWindow && !paymentWindow.closed) {
           paymentWindow.close();
@@ -76,7 +75,7 @@ const Payment = () => {
         clearInterval(checkPaymentInterval);
         console.log('Payment timeout - showing payment verification form...');
         setShowPaymentVerification(true);
-      }, 30000);
+      }, 60000); // Changed to 60 seconds (1 minute)
       
     } catch (error) {
       console.error('Payment error:', error);
@@ -86,24 +85,45 @@ const Payment = () => {
     }
   };
 
-  const handlePaymentVerification = () => {
+  const handlePaymentVerification = async () => {
     if (!paymentId.trim()) {
       toast.error("Please enter your payment ID");
       return;
     }
 
-    // Store payment verification details
-    const customerDetails = JSON.parse(localStorage.getItem('payment_customer_details') || '{}');
-    localStorage.setItem('payment_customer_details', JSON.stringify({
-      ...customerDetails,
-      payment_id: paymentId,
-      payment_completed: true,
-      timestamp: Date.now()
-    }));
+    // Basic validation for Razorpay payment ID format
+    if (!paymentId.startsWith('pay_')) {
+      toast.error("Please enter a valid Razorpay payment ID (starts with 'pay_')");
+      return;
+    }
 
-    console.log('Payment ID verified, redirecting to sign-up...');
-    toast.success("Payment verified! Redirecting to account creation...");
-    navigate(`/auth?payment_verified=true&email=${encodeURIComponent(email)}`);
+    setIsLoading(true);
+
+    try {
+      console.log('Verifying payment ID:', paymentId);
+      
+      // Store payment verification details
+      const customerDetails = JSON.parse(localStorage.getItem('payment_customer_details') || '{}');
+      localStorage.setItem('payment_customer_details', JSON.stringify({
+        ...customerDetails,
+        payment_id: paymentId,
+        payment_completed: true,
+        timestamp: Date.now()
+      }));
+
+      toast.success("Payment ID verified! Redirecting to account creation...");
+      
+      // Small delay to show the success message
+      setTimeout(() => {
+        navigate(`/auth?payment_verified=true&email=${encodeURIComponent(email)}`);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      toast.error("Failed to verify payment. Please check your payment ID and try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Check if user is returning from payment
@@ -159,10 +179,18 @@ const Payment = () => {
 
             <Button 
               onClick={handlePaymentVerification}
+              disabled={isLoading}
               className="w-full"
               size="lg"
             >
-              Verify Payment & Continue to Sign Up
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying Payment...
+                </>
+              ) : (
+                "Verify Payment & Continue to Sign Up"
+              )}
             </Button>
 
             <Button 
