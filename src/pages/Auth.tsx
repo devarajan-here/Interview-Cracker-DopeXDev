@@ -48,7 +48,7 @@ const Auth = () => {
           return;
         }
 
-        // Check if user has verified payment
+        // For regular users, check if they have access
         const { data: profile } = await supabase
           .from('profiles')
           .select('payment_verified, subscription_status')
@@ -105,12 +105,17 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      console.log('Creating account with payment verification...');
+      
+      // Create account with email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
           data: {
             email: email,
+            payment_verified: true
           }
         }
       });
@@ -118,7 +123,8 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Update profile to mark payment as verified
+        // Update profile to mark payment as verified immediately
+        console.log('Updating user profile with payment verification...');
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
@@ -134,8 +140,15 @@ const Auth = () => {
         // Clear stored payment details after successful account creation
         localStorage.removeItem('payment_customer_details');
 
-        toast.success(isAdmin ? "Admin account created successfully!" : "Account created successfully! You now have access to the AI Interview Assistant.");
-        navigate('/live-interview');
+        if (data.user.email_confirmed_at) {
+          // User email is already confirmed, redirect to live interview
+          toast.success("Account created successfully! You now have access to the AI Interview Assistant.");
+          navigate('/live-interview');
+        } else {
+          // Email confirmation required
+          toast.success("Account created! Please check your email and click the confirmation link to complete setup.");
+          toast.info("After confirming your email, you can sign in below to access the service.");
+        }
       }
     } catch (error: any) {
       console.error('Sign up error:', error);
@@ -205,22 +218,23 @@ const Auth = () => {
           return;
         }
 
-        // Check payment status for regular users
+        // For regular users, check payment status but don't block if they have verified payment from signup
         const { data: profile } = await supabase
           .from('profiles')
           .select('payment_verified, subscription_status')
           .eq('id', data.user.id)
           .single();
 
-        if (!profile || !profile.payment_verified || profile.subscription_status !== 'active') {
-          toast.error("Payment verification required. Please complete payment.");
+        // If user completed payment and signed up, they should have access
+        if (profile && profile.payment_verified && profile.subscription_status === 'active') {
+          toast.success("Welcome back! You now have access to the AI Interview Assistant.");
+          navigate('/live-interview');
+        } else {
+          // Only redirect to payment if they haven't verified payment yet
+          toast.error("Payment verification required. Please complete payment first.");
           await supabase.auth.signOut();
           navigate('/payment');
-          return;
         }
-
-        toast.success("Welcome back! You now have access to the AI Interview Assistant.");
-        navigate('/live-interview');
       }
     } catch (error: any) {
       console.error('Sign in error:', error);

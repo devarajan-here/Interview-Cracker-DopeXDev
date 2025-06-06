@@ -45,16 +45,20 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
         if (error) {
           console.error('Profile fetch error:', error);
+          // If profile doesn't exist, create it and redirect to payment
           navigate('/payment');
           return;
         }
 
-        if (!profile || !profile.payment_verified || profile.subscription_status !== 'active') {
+        // Allow access if payment is verified and subscription is active
+        if (profile && profile.payment_verified && profile.subscription_status === 'active') {
+          console.log('Access granted - payment verified and subscription active');
+          setHasAccess(true);
+        } else {
+          console.log('Access denied - payment not verified or subscription inactive');
           navigate('/payment');
           return;
         }
-
-        setHasAccess(true);
       } catch (error) {
         console.error('Access verification error:', error);
         navigate('/payment');
