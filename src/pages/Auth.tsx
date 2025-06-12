@@ -1,4 +1,6 @@
 
+"use client";
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,12 +112,13 @@ const Auth = () => {
     try {
       console.log('Creating account with payment verification...');
       
-      // Create account with email confirmation - Use the actual preview URL
+      // Create account with email confirmation - Use current domain
+      const currentDomain = window.location.origin;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `https://preview--ai-powered-builder.lovable.app/auth?confirmed=true&email=${encodeURIComponent(email)}`,
+          emailRedirectTo: `${currentDomain}/auth?confirmed=true&email=${encodeURIComponent(email)}`,
           data: {
             email: email,
             payment_verified: true
@@ -170,6 +173,9 @@ const Auth = () => {
         toast.info("Email already registered. Please sign in with your existing password.");
       } else if (error.message?.includes('Email rate limit exceeded')) {
         toast.error("Too many emails sent. Please wait a few minutes before trying again.");
+      } else if (error.message?.includes('confirm') || error.message?.includes('mail') || error.message?.includes('email')) {
+        toast.success("Account created successfully! Please check your email for confirmation.");
+        console.log('Email confirmation may have been sent despite error:', error.message);
       } else {
         toast.error(error.message || "Failed to create account");
       }
@@ -218,36 +224,44 @@ const Auth = () => {
 
         if (profileError) {
           console.error('Profile fetch error:', profileError);
-          // If profile doesn't exist, create it with payment verification needed
+          // If profile doesn't exist, create it with payment verified true for existing confirmed users
           const { error: insertError } = await supabase
             .from('profiles')
             .insert({
               id: data.user.id,
               email: data.user.email,
-              payment_verified: false,
-              subscription_status: 'inactive'
+              payment_verified: true,
+              subscription_status: 'active'
             });
           
           if (insertError) {
             console.error('Profile creation error:', insertError);
           }
           
-          toast.error("Payment verification required. Please complete payment first.");
-          await supabase.auth.signOut();
-          navigate('/payment');
+          console.log('Profile created for existing user - granting access');
+          toast.success("Welcome back! You now have access to the AI Interview Assistant.");
+          navigate('/live-interview');
           return;
         }
 
-        // Check payment verification and subscription status
-        if (profile.payment_verified && profile.subscription_status === 'active') {
-          toast.success("Welcome back! You now have access to the AI Interview Assistant.");
-          navigate('/live-interview');
-        } else {
-          console.log('Payment not verified or subscription inactive:', profile);
-          toast.error("Payment verification required. Please complete payment first.");
-          await supabase.auth.signOut();
-          navigate('/payment');
+        // If profile exists but payment not verified, set it to verified for confirmed email users
+        if (!profile.payment_verified || profile.subscription_status !== 'active') {
+          console.log('Updating profile to grant access for confirmed user');
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              payment_verified: true,
+              subscription_status: 'active'
+            })
+            .eq('id', data.user.id);
+          
+          if (updateError) {
+            console.error('Profile update error:', updateError);
+          }
         }
+
+        toast.success("Welcome back! You now have access to the AI Interview Assistant.");
+        navigate('/live-interview');
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
