@@ -40,6 +40,12 @@ const LiveInterview = () => {
     });
   };
 
+  const handleClearCapturedText = () => {
+    setQuestion("");
+    // Optionally, add a toast notification if desired, e.g.:
+    // toast.info("Captured text cleared");
+  };
+
   const handleAIAssistance = (suggestion: string) => {
     setAIAssistance(suggestion);
     toast.info("AI Assistance", {
@@ -149,6 +155,13 @@ const LiveInterview = () => {
                     placeholder="Captured text will appear here..." 
                     className="min-h-[100px]"
                   />
+                  <Button
+                    variant="outline"
+                    onClick={handleClearCapturedText}
+                    className="self-start"
+                  >
+                    Clear Captured Text
+                  </Button>
                 </div>
                 
                 <div className="flex gap-4">
