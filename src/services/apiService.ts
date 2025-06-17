@@ -62,9 +62,16 @@ export const generateAnswer = async (question: string): Promise<string> => {
     console.log('API response status:', response.status);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('API error:', errorData);
-      throw new Error(errorData.error?.message || `API error: ${response.status}`);
+      const errorData = await response.json().catch(() => ({ message: "Failed to parse error response" }));
+      if (response.status === 401) {
+        console.error('API error 401: Unauthorized. Check API key.');
+        toast.error("API request failed: Unauthorized. Please ensure your OpenRouter API key is correct and has sufficient credits. You can update it in the settings.");
+        throw new Error("OpenRouter API Key is invalid or unauthorized. Please check your key in settings.");
+      } else {
+        console.error(`API error ${response.status}:`, errorData);
+        toast.error(`API request failed with status: ${response.status}. ${errorData.error?.message || errorData.message || 'Please try again or check your key.'}`);
+        throw new Error(errorData.error?.message || errorData.message || `API error: ${response.status}`);
+      }
     }
 
     const data = await response.json();
@@ -75,6 +82,6 @@ export const generateAnswer = async (question: string): Promise<string> => {
   } catch (error) {
     console.error("Error generating answer:", error);
     toast.error(`Failed to get AI response: ${error instanceof Error ? error.message : "Unknown error"}`);
-    return "Sorry, there was an error generating a response. Please check your API key and try again.";
+    return `Sorry, there was an error generating a response. ${error instanceof Error ? error.message : "Please check your API key and try again."}`;
   }
 };
