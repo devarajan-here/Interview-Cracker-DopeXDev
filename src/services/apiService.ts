@@ -52,10 +52,10 @@ export const generateAnswer = async (question: string): Promise<string> => {
         "X-Title": "AI Interview Assistant"
       },
       body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo",
+        model: "google/gemma-3n-e4b-it:free", // This is the new model
         messages,
         temperature: 0.7,
-        max_tokens: 300
+        max_tokens: 300 // Keeping this as is for now
       })
     });
 
