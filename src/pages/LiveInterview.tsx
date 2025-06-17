@@ -10,6 +10,7 @@ import ScreenShare from "@/components/ScreenShare";
 import JobSelector from "@/components/JobSelector";
 import MicrophoneSelector from "@/components/MicrophoneSelector";
 import ChangePasswordForm from "@/components/ChangePasswordForm";
+import ApiKeyForm from "@/components/ApiKeyForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -113,8 +114,21 @@ const LiveInterview = () => {
                   </SheetDescription>
                 </SheetHeader>
                 <div className="py-4">
-                  <ChangePasswordForm onSave={() => setShowSettings(false)} />
-                </div>
+                    <div>
+                      <h4 className="text-md font-semibold mb-3 text-gray-800">Change Password</h4>
+                      <ChangePasswordForm onSave={() => setShowSettings(false)} />
+                    </div>
+
+                    <hr className="my-6 border-gray-200" />
+
+                    <div>
+                      <h4 className="text-md font-semibold mb-3 text-gray-800">OpenRouter API Key</h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Manage your OpenRouter API key to enable AI-powered features.
+                      </p>
+                      <ApiKeyForm onSave={() => setShowSettings(false)} />
+                    </div>
+                  </div>
               </SheetContent>
             </Sheet>
             
