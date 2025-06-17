@@ -14,6 +14,17 @@ const JobSelector = ({ onJobChange, selectedJob }: JobSelectorProps) => {
   const [customJobInput, setCustomJobInput] = useState("");
   const [internalSelection, setInternalSelection] = useState<string>("");
 
+  const predefinedJobs = [
+    "SOC Analyst",
+    "Software Engineer",
+    "Data Scientist",
+    "Product Manager",
+    "DevOps Engineer",
+    "Cybersecurity Specialist",
+    "Full Stack Developer",
+    "Custom"
+  ];
+
   useEffect(() => {
     // Ensure predefinedJobs is accessible here. If it's defined outside the component, pass it in or ensure scope.
     // Assuming predefinedJobs is defined within the component scope as shown in the initial file read.
@@ -27,18 +38,7 @@ const JobSelector = ({ onJobChange, selectedJob }: JobSelectorProps) => {
       setInternalSelection(""); // This will make the Select show its placeholder
       setCustomJobInput("");
     }
-  }, [selectedJob, predefinedJobs]);
-
-  const predefinedJobs = [
-    "SOC Analyst",
-    "Software Engineer", 
-    "Data Scientist",
-    "Product Manager",
-    "DevOps Engineer",
-    "Cybersecurity Specialist",
-    "Full Stack Developer",
-    "Custom"
-  ];
+  }, [selectedJob, predefinedJobs]); // Now predefinedJobs is correctly in scope
 
   const handleDropdownValueChange = (value: string) => {
     setInternalSelection(value); // Update what the dropdown shows
