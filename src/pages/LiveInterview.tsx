@@ -108,30 +108,31 @@ const LiveInterview = () => {
                 </Button>
               </SheetTrigger>
               <SheetContent>
-                <SheetHeader>
-                  <SheetTitle>Account Settings</SheetTitle>
-                  <SheetDescription>
-                    Manage your account settings and security.
-                  </SheetDescription>
-                </SheetHeader>
-                <ScrollArea className="h-[300px]">
-                  <div className="p-4">
-                    <div>
-                      <h4 className="text-md font-semibold mb-3 text-gray-800">Change Password</h4>
-                      <ChangePasswordForm onSave={() => setShowSettings(false)} />
-                    </div>
+                <div className="flex flex-col h-full"> {/* New wrapper */}
+                  <SheetHeader>
+                    <SheetTitle>Account Settings</SheetTitle>
+                    <SheetDescription>
+                      Manage your account settings and security.
+                    </SheetDescription>
+                  </SheetHeader>
 
-                    <hr className="my-6 border-gray-200" />
-
-                    <div>
-                      <h4 className="text-md font-semibold mb-3 text-gray-800">OpenRouter API Key</h4>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Manage your OpenRouter API key to enable AI-powered features.
-                      </p>
-                      <ApiKeyForm onSave={() => setShowSettings(false)} />
+                  <ScrollArea className="flex-1">
+                    <div className="p-4"> {/* This div holds the actual form content */}
+                      <div>
+                        <h4 className="text-md font-semibold mb-3 text-gray-800">Change Password</h4>
+                        <ChangePasswordForm onSave={() => setShowSettings(false)} />
+                      </div>
+                      <hr className="my-6 border-gray-200" />
+                      <div>
+                        <h4 className="text-md font-semibold mb-3 text-gray-800">OpenRouter API Key</h4>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Manage your OpenRouter API key to enable AI-powered features.
+                        </p>
+                        <ApiKeyForm onSave={() => setShowSettings(false)} />
+                      </div>
                     </div>
-                  </div>
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </SheetContent>
             </Sheet>
             
