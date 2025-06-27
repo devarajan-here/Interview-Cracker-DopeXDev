@@ -223,7 +223,7 @@ const Payment = () => {
           <div className="text-center p-6 bg-blue-50 rounded-lg border">
             {/* Lifetime Option */}
             <div>
-              <div className="text-3xl font-bold text-green-600">₹100</div>
+              <div className="text-3xl font-bold text-green-600">₹150</div>
               <div className="text-gray-600">for lifetime access!</div>
               <p className="text-xs text-gray-500 mt-1">(Special Offer)</p>
             </div>
@@ -296,7 +296,7 @@ const Payment = () => {
             ) : (
               <>
                 <CreditCard className="mr-2 h-5 w-5" />
-                Pay ₹100 & Get Lifetime Access {/* Changed text */}
+                Pay ₹150 & Get Lifetime Access {/* Changed text */}
                 <ExternalLink className="ml-2 h-4 w-4" />
               </>
             )}
