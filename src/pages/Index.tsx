@@ -90,8 +90,8 @@ const Index = () => {
         {/* Pricing Card */}
         <Card className="max-w-md mx-auto mb-8 border-2 border-blue-200 shadow-lg">
           <CardHeader className="text-center">
-            <div className="text-3xl font-bold text-blue-600">₹70</div>
-            <div className="text-gray-600">per month</div>
+            <div className="text-3xl font-bold text-blue-600">₹150</div>
+            <div className="text-gray-600">For Life Time</div>
             <CardTitle>Premium Access</CardTitle>
             <CardDescription>Everything you need to succeed</CardDescription>
           </CardHeader>
