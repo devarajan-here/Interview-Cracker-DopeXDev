@@ -22,6 +22,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const LiveInterview = () => {
   const [question, setQuestion] = useState("");
@@ -113,7 +114,8 @@ const LiveInterview = () => {
                     Manage your account settings and security.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="py-4 overflow-y-auto flex-1">
+                <ScrollArea className="flex-1">
+                  <div className="p-4">
                     <div>
                       <h4 className="text-md font-semibold mb-3 text-gray-800">Change Password</h4>
                       <ChangePasswordForm onSave={() => setShowSettings(false)} />
@@ -129,6 +131,7 @@ const LiveInterview = () => {
                       <ApiKeyForm onSave={() => setShowSettings(false)} />
                     </div>
                   </div>
+                </ScrollArea>
               </SheetContent>
             </Sheet>
             
