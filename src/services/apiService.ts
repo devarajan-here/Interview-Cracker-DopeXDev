@@ -61,7 +61,7 @@ export const generateAnswer = async (question: string, selectedJob: string): Pro
         model: "nousresearch/nous-hermes-2-mixtral-8x7b-dpo",
         messages,
         temperature: 0.7,
-        max_tokens: 150 // Reduced for testing
+        max_tokens: 500 // Increased value
       })
     });
 
