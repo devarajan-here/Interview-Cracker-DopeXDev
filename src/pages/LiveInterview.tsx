@@ -27,7 +27,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 const LiveInterview = () => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
-  const [aiAssistance, setAIAssistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedJob, setSelectedJob] = useState("");
@@ -46,14 +45,6 @@ const LiveInterview = () => {
     setQuestion("");
     // Optionally, add a toast notification if desired, e.g.:
     // toast.info("Captured text cleared");
-  };
-
-  const handleAIAssistance = (suggestion: string) => {
-    setAIAssistance(suggestion);
-    toast.info("AI Assistance", {
-      description: suggestion,
-      duration: 5000,
-    });
   };
 
   const handleSubmit = async () => {
@@ -164,7 +155,6 @@ const LiveInterview = () => {
                 <div className="flex flex-col gap-4">
                   <ScreenShare 
                     onScreenCapture={handleScreenCapture} 
-                    onAIAssist={handleAIAssistance}
                   />
                   
                   <Textarea 
@@ -201,12 +191,6 @@ const LiveInterview = () => {
 
           {/* Right Column - Responses */}
           <div className="space-y-6">
-            {aiAssistance && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">Current AI Assistance</h3>
-                <p className="text-blue-800 text-sm">{aiAssistance}</p>
-              </div>
-            )}
             
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold mb-4">AI Response</h3>
