@@ -20,8 +20,9 @@ export const getApiKey = () => {
   return apiKey;
 };
 
-export const generateAnswer = async (question: string): Promise<string> => {
+export const generateAnswer = async (question: string, selectedJob: string): Promise<string> => {
   console.log('Generating answer for question:', question.substring(0, 100) + '...');
+  console.log('Selected job for context:', selectedJob);
   
   if (!apiKey) {
     console.error('No API key available');
@@ -30,18 +31,23 @@ export const generateAnswer = async (question: string): Promise<string> => {
   }
 
   try {
+    let userMessageContent = question;
+    if (selectedJob && selectedJob.trim() !== "") {
+      userMessageContent = `I'm preparing for an interview for a "${selectedJob}" role. My question is: ${question}`;
+    }
+
     const messages: ChatMessage[] = [
       {
         role: "system",
-        content: "You are an AI assistant. Adopt the persona of a helpful friend or recent graduate who has just successfully navigated the job interview process. Your user is a student looking for practical tips for their own upcoming interviews. Offer advice that is relatable, empathetic, and focused on common challenges students face (e.g., lack of professional experience, nervousness, translating academic projects to job skills). Provide actionable tips and keep your tone encouraging and supportive. Please keep your responses concise, ideally under 150 words."
+        content: "You are an AI assistant. Adopt the persona of a helpful friend or recent graduate who has just successfully navigated the job interview process. Your user is a student looking for practical tips for their own upcoming interviews. Offer advice that is relatable, empathetic, and focused on common challenges students face (e.g., lack of professional experience, nervousness, translating academic projects to job skills). Provide actionable tips and keep your tone encouraging and supportive. Please keep your responses concise, ideally under 150 words. It is very important to tailor your advice to the specific job role the user mentions or is asking about."
       },
       {
         role: "user",
-        content: question
+        content: userMessageContent
       }
     ];
 
-    console.log('Making API request to OpenRouter...');
+    console.log('Making API request to OpenRouter with user message:', userMessageContent.substring(0,100) + '...');
 
     const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
