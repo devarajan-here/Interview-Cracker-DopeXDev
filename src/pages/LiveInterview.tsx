@@ -114,7 +114,7 @@ const LiveInterview = () => {
                     Manage your account settings and security.
                   </SheetDescription>
                 </SheetHeader>
-                <ScrollArea className="flex-1">
+                <ScrollArea className="h-[300px]">
                   <div className="p-4">
                     <div>
                       <h4 className="text-md font-semibold mb-3 text-gray-800">Change Password</h4>
