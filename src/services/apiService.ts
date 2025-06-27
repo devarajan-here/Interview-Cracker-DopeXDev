@@ -31,19 +31,16 @@ export const generateAnswer = async (question: string, selectedJob: string): Pro
   }
 
   try {
-    let userMessageContent = question;
-    if (selectedJob && selectedJob.trim() !== "") {
-      userMessageContent = `I'm preparing for an interview for a "${selectedJob}" role. My question is: ${question}`;
-    }
+    const userMessageContent = question;
 
     const messages: ChatMessage[] = [
       {
         role: "system",
-        content: "You are an AI assistant. Adopt the persona of a helpful friend or recent graduate who has just successfully navigated the job interview process. Your user is a student looking for practical tips for their own upcoming interviews. Offer advice that is relatable, empathetic, and focused on common challenges students face (e.g., lack of professional experience, nervousness, translating academic projects to job skills). Provide actionable tips and keep your tone encouraging and supportive. Please keep your responses concise, ideally under 150 words. It is very important to tailor your advice to the specific job role the user mentions or is asking about."
+        content: "You are an AI acting as a professional interviewer. Based on the job role provided by the user (if any, it will be part of their message), ask relevant interview questions one at a time. Wait for the user's response before asking your next question. Your role is to ask questions, not to provide answers or coaching. If the user's initial message specifies a job role, use that to tailor your first question."
       },
       {
         role: "user",
-        content: userMessageContent
+        content: userMessageContent // 'question' is the user's raw input
       }
     ];
 
