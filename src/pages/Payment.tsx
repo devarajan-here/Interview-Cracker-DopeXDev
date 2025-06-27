@@ -221,11 +221,25 @@ const Payment = () => {
         <CardContent className="space-y-6">
           {/* Price Display */}
           <div className="text-center p-6 bg-blue-50 rounded-lg border">
-            <div className="text-3xl font-bold text-blue-600">₹70</div>
-            <div className="text-gray-600">per month</div>
-            <div className="flex items-center justify-center mt-2 text-sm text-green-600">
+            {/* Monthly Option */}
+            <div>
+              <div className="text-3xl font-bold text-blue-600">₹70</div>
+              <div className="text-gray-600">per month</div>
+            </div>
+
+            <div className="my-4 text-sm font-medium text-gray-700">OR</div>
+
+            {/* Lifetime Option */}
+            <div>
+              <div className="text-3xl font-bold text-green-600">₹100</div>
+              <div className="text-gray-600">for lifetime access!</div>
+              <p className="text-xs text-gray-500 mt-1">(Special Offer)</p>
+            </div>
+
+            {/* Common features list */}
+            <div className="flex items-center justify-center mt-4 text-sm text-green-600">
               <CheckCircle className="h-4 w-4 mr-1" />
-              Real-time AI assistance
+              Real-time AI assistance & all features
             </div>
           </div>
 
