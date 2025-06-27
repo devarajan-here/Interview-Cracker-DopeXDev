@@ -71,7 +71,7 @@ const LiveInterview = () => {
     setAnswer("");
     
     try {
-      const response = await generateAnswer(question);
+      const response = await generateAnswer(question, selectedJob);
       setAnswer(response);
     } catch (error) {
       console.error("Error generating answer:", error);
