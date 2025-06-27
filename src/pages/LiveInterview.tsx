@@ -113,7 +113,7 @@ const LiveInterview = () => {
                     Manage your account settings and security.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="py-4 overflow-y-auto">
+                <div className="py-4 overflow-y-auto flex-1">
                     <div>
                       <h4 className="text-md font-semibold mb-3 text-gray-800">Change Password</h4>
                       <ChangePasswordForm onSave={() => setShowSettings(false)} />
