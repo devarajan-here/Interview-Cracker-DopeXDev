@@ -160,7 +160,7 @@ const LiveInterview = () => {
                   <Textarea 
                     value={question} 
                     onChange={(e) => setQuestion(e.target.value)} 
-                    placeholder="Your response will appear here as you type..."
+                    placeholder="Your question will appear here as you type..."
                     className="min-h-[100px]"
                   />
                   <Button
@@ -176,7 +176,7 @@ const LiveInterview = () => {
                   <Input
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
-                    placeholder="Type your response to the interviewer here..."
+                    placeholder="Ask a definition question (e.g., What is a firewall?)..."
                     className="flex-grow"
                     onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                   />

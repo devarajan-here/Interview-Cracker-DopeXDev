@@ -36,7 +36,7 @@ export const generateAnswer = async (question: string, selectedJob: string): Pro
     const messages: ChatMessage[] = [
       {
         role: "system",
-        content: "You are an AI acting as a professional interviewer. Based on the job role provided by the user (if any, it will be part of their message), ask relevant interview questions one at a time. Wait for the user's response before asking your next question. Your role is to ask questions, not to provide answers or coaching. If the user's initial message specifies a job role, use that to tailor your first question."
+        content: "You are an AI knowledge base. When the user asks a 'What is X?' type of question, provide a concise, direct definition or explanation of X, suitable for someone studying for a technical interview. Focus on the core concepts. Do not provide interview coaching, study advice, or ask follow-up questions unless explicitly asked to elaborate."
       },
       {
         role: "user",
