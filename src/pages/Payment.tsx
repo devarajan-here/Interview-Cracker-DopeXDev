@@ -221,14 +221,6 @@ const Payment = () => {
         <CardContent className="space-y-6">
           {/* Price Display */}
           <div className="text-center p-6 bg-blue-50 rounded-lg border">
-            {/* Monthly Option */}
-            <div>
-              <div className="text-3xl font-bold text-blue-600">₹70</div>
-              <div className="text-gray-600">per month</div>
-            </div>
-
-            <div className="my-4 text-sm font-medium text-gray-700">OR</div>
-
             {/* Lifetime Option */}
             <div>
               <div className="text-3xl font-bold text-green-600">₹100</div>
@@ -304,7 +296,7 @@ const Payment = () => {
             ) : (
               <>
                 <CreditCard className="mr-2 h-5 w-5" />
-                Pay ₹70 & Continue
+                Pay ₹100 & Get Lifetime Access {/* Changed text */}
                 <ExternalLink className="ml-2 h-4 w-4" />
               </>
             )}
